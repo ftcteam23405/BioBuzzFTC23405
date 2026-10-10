@@ -11,13 +11,12 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Limelight;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
 import java.util.List;
 import java.util.Map;
-
+/*
 // apriltag + shooter tester, makes the follower, limelight, and shooter itself instead of using the Robot class
 // during init: dpad left = blue, dpad right = red
 // a = spin up (tracks distance to goal), x = spin up to fixedVelocity, b = spin down, y = reset distance filter
@@ -30,7 +29,6 @@ public class AprilTagLimelightTest extends OpMode {
     public static double fixedVelocity = 1300;
 
     private Follower follower;
-    private Limelight limelight;
     private Shooter shooter;
     private Alliance alliance = Alliance.BLUE;
 
@@ -58,8 +56,6 @@ public class AprilTagLimelightTest extends OpMode {
         // made here instead of init() so the alliance picked during init sets the tag pipeline
         follower = Constants.create(hardwareMap);
         follower.setPose(new Pose(startX, startY, Math.toRadians(startHeadingDeg)));
-        limelight = new Limelight(hardwareMap, alliance);
-        limelight.switchToShootPipeline();
         shooter = new Shooter(hardwareMap);
         loopTimer.reset();
     }
@@ -80,12 +76,9 @@ public class AprilTagLimelightTest extends OpMode {
         if (gamepad1.yWasPressed()) shooter.resetFilter();
 
         // one read of the limelight per loop, everything below just uses what it cached
-        limelight.periodic();
 
         // NaN unless a new tag frame came in this loop, so the filter corrects once per frame
-        if (shooter.isTracking())
-            shooter.setVelocityFromDistance(pose, alliance, limelight.freshDistanceToGoal());
-        shooter.periodic();
+
 
         double loopMs = loopTimer.milliseconds();
         loopTimer.reset();
@@ -155,3 +148,4 @@ public class AprilTagLimelightTest extends OpMode {
         if (limelight != null) limelight.stop();
     }
 }
+*/

@@ -1,5 +1,5 @@
 package org.firstinspires.ftc.teamcode.tuning;
-
+/*
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.drivetrain.DrivePowers;
@@ -11,7 +11,6 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Limelight;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalDistanceFilter;
@@ -57,7 +56,6 @@ public class GoalDistanceFilterTuner extends OpMode {
     public static int statSamples = 50;      // limelight frames kept for the noise/error numbers
 
     private Follower follower;
-    private Limelight limelight;
     private Alliance alliance = Alliance.BLUE;
 
     private final GoalDistanceFilter filter = new GoalDistanceFilter();
@@ -323,3 +321,4 @@ public class GoalDistanceFilterTuner extends OpMode {
         setPedroOnly(false); // don't leave the dashboard weight on 0 for the next opmode
     }
 }
+*/

@@ -19,14 +19,11 @@ public class Intake {
     public static double intakeOnSpeed = 1;
     public static double intakeReverseSpeed = -1;
 
-    private final DigitalChannel laser;
 
     public Intake(HardwareMap hardwareMap){
         intakeMotor = hardwareMap.get(DcMotorEx.class, "intakeMotor");
         intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        laser = hardwareMap.get(DigitalChannel.class, "laser");
-        laser.setMode(DigitalChannel.Mode.INPUT);
     }
 
     public void setPower(double power){
@@ -45,9 +42,6 @@ public class Intake {
         setPower(intakeReverseSpeed);
     }
 
-    public boolean isFull() {
-        return laser.getState();
-    }
 
     public CommandBuilder off() {
         return Commands.instant(() -> setPower(intakeOffSpeed));

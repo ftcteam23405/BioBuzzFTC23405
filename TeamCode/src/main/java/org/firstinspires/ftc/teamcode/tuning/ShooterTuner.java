@@ -1,12 +1,11 @@
 package org.firstinspires.ftc.teamcode.tuning;
-
+/*
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Limelight;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 
 import java.util.ArrayDeque;
@@ -31,7 +30,6 @@ public class ShooterTuner extends OpMode {
     public static double ticksPerRev = 28;   // flywheel motor encoder, for the rpm readout
     public static int averageSamples = 15;   // limelight readings averaged for the recorded distance
 
-    private Limelight limelight;
     private Shooter shooter;
     private Alliance alliance = Alliance.BLUE;
 
@@ -181,3 +179,4 @@ public class ShooterTuner extends OpMode {
         if (limelight != null) limelight.stop();
     }
 }
+*/

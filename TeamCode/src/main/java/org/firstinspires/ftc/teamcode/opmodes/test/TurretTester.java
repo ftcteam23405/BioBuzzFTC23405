@@ -1,12 +1,10 @@
 package org.firstinspires.ftc.teamcode.opmodes.test;
-
+/*
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 
 // spins the turret to a position with its PID, nothing else: no pedro, no limelight, no filter
 // the turret starts off so you can turn it by hand and check the encoder first
@@ -31,7 +29,6 @@ public class TurretTester extends OpMode {
     public static double smallStep = 1;
     public static double leftPreset = 90, rightPreset = -90;
 
-    private Turret turret;
     private double target = 0;
 
     @Override
@@ -99,3 +96,4 @@ public class TurretTester extends OpMode {
         turret.stop();
     }
 }
+*/

@@ -1,5 +1,5 @@
 package org.firstinspires.ftc.teamcode.tuning;
-
+/*
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
@@ -12,9 +12,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import java.util.Locale;
-
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
-
 
 
 // under Turret and they take effect on the next loop. graph Target and Angle to see the step response
@@ -37,7 +34,6 @@ public class TurretPIDTuner extends OpMode {
     public static double stepSize = 45;
     public static double holdTime = 1.5;  // seconds at each target before stepping again
 
-    private Turret turret;
     private JoinedTelemetry joinedTelemetry;
 
     private boolean stepping = false;
@@ -156,3 +152,4 @@ public class TurretPIDTuner extends OpMode {
         turret.stop();
     }
 }
+*/
