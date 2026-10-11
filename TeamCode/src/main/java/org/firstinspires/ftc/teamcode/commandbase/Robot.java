@@ -105,6 +105,39 @@ public class Robot {
         turret.resetFilter();
     }
 
+    // tag ids on each of the 4 cells, same groups as Limelight's GOAL_OFFSETS
+
+    private static final int[] RED_FAR_TAGS = {30, 31, 32, 33};
+    private static final int[] RED_AUDIENCE_TAGS = {34, 35, 36, 37};
+    private static final int[] BLUE_AUDIENCE_TAGS = {38, 39, 40, 41};
+    private static final int[] BLUE_FAR_TAGS = {42, 43, 44, 45};
+
+    // tag ids on our alliance's cell that's closest to the robot
+    public int[] closestCellTags() {
+        Pose goal = Shooter.closestGoal(follower.pose(), alliance);
+        boolean audience = goal.y() == Shooter.audienceGoalY;
+
+        if (alliance == Alliance.RED)
+            return audience ? RED_AUDIENCE_TAGS : RED_FAR_TAGS;
+        return audience ? BLUE_AUDIENCE_TAGS : BLUE_FAR_TAGS;
+    }
+
+    // true if the limelight can see at least one tag on the closest cell
+    public boolean closestCellTagsVisible() {
+        List<Integer> visible = limelight.visibleTagIds();
+        for (int id : closestCellTags()) {
+            if (visible.contains(id)) return true;
+        }
+        return false;
+    }
+
+    // the hive has tipped if the closest cell's tags are gone. only means anything while the limelight
+    // is on the tags pipeline and pointed at the goal (turret tracking), so it's false otherwise
+    public boolean hiveTipped() {
+        if (!limelight.onTagPipeline() || !turret.isTracking()) return false;
+        return !closestCellTagsVisible();
+    }
+
     public CommandBuilder intake() {
         return sequential(
                 latch.toOpenPos(),
