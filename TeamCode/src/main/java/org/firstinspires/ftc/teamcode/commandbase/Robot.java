@@ -8,6 +8,7 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.teamcode.commandbase.subsystems.DriveTrain;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Latch;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
@@ -23,10 +24,11 @@ public class Robot {
     public final Intake intake;
     public final Latch latch;
     public final Shooter shooter;
+    public final DriveTrain driveTrain;
     public final Follower follower;
     public Alliance alliance;
 
-    private final List<LynxModule> hubs;
+    public final List<LynxModule> hubs;
     private final com.pedropathing.utils.Timer loopTimer = new com.pedropathing.utils.Timer();
     private static Pose endPose = new Pose(0, 0, 0);
     public double loops = 0, lastLoop = 0, loopTime = 0;
@@ -36,6 +38,8 @@ public class Robot {
         intake = new Intake(hardwareMap);
         latch = new Latch(hardwareMap);
         shooter = new Shooter(hardwareMap);
+        driveTrain = new DriveTrain(hardwareMap);
+
         follower = Constants.create(hardwareMap);
 
         hubs = hardwareMap.getAll(LynxModule.class);

@@ -7,8 +7,10 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.pedropathing.drivetrain.DrivePowers;
 import com.pedropathing.follower.ManualDrive;
 import com.pedropathing.ivy.Scheduler;
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
 
@@ -72,7 +74,7 @@ public class Teleop extends OpMode {
 
         if (gamepad1.xWasPressed())
             robot.latch.intake();
-        if (gamepad1.aWasPressed())
+        if (gamepad1.bWasPressed())
             robot.latch.outtake();
 
 
@@ -98,7 +100,16 @@ public class Teleop extends OpMode {
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
         joinedTelemetry.addLine();
         joinedTelemetry.addData("Intake: ", robot.intake.getCurrent());
-        joinedTelemetry.addData("Shooter", robot.shooter.getCurrent());
+        joinedTelemetry.addData("Shooter: ", robot.shooter.getCurrent());
+        joinedTelemetry.addData("Drivetrain: ", robot.driveTrain.getCurrent());
+        joinedTelemetry.addData("FL: ", robot.driveTrain.fl.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("FR: ", robot.driveTrain.fr.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("BL: ", robot.driveTrain.bl.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("BR: ", robot.driveTrain.br.getCurrent(CurrentUnit.MILLIAMPS));
+
+        for (LynxModule hub : robot.hubs) {
+            joinedTelemetry.addData(hub.getDeviceName()+": ", hub.getCurrent(CurrentUnit.MILLIAMPS)/1000);
+        }
         joinedTelemetry.addData("Hold Position", hold);
         joinedTelemetry.update();
     }

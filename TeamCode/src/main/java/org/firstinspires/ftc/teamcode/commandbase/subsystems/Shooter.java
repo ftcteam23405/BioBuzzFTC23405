@@ -64,7 +64,7 @@ public class Shooter {
 
 
     public double getCurrent() {
-        return shooterMotor.getCurrent(CurrentUnit.MILLIAMPS) / 1000;
+        return shooterMotor.getCurrent(CurrentUnit.MILLIAMPS);
     }
 
 }

@@ -55,7 +55,7 @@ public class Intake {
         return Commands.instant(() -> setPower(intakeReverseSpeed));
     }
     public double getCurrent() {
-        return intakeMotor.getCurrent(CurrentUnit.MILLIAMPS)/1000;
+        return intakeMotor.getCurrent(CurrentUnit.MILLIAMPS);
     }
 
 
