@@ -11,6 +11,7 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
 
@@ -99,16 +100,16 @@ public class Teleop extends OpMode {
         joinedTelemetry.addLine();
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
         joinedTelemetry.addLine();
-        joinedTelemetry.addData("Intake: ", robot.intake.getCurrent());
-        joinedTelemetry.addData("Shooter: ", robot.shooter.getCurrent());
-        joinedTelemetry.addData("Drivetrain: ", robot.driveTrain.getCurrent());
-        joinedTelemetry.addData("FL: ", robot.driveTrain.fl.getCurrent(CurrentUnit.MILLIAMPS));
-        joinedTelemetry.addData("FR: ", robot.driveTrain.fr.getCurrent(CurrentUnit.MILLIAMPS));
-        joinedTelemetry.addData("BL: ", robot.driveTrain.bl.getCurrent(CurrentUnit.MILLIAMPS));
-        joinedTelemetry.addData("BR: ", robot.driveTrain.br.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("Intake", robot.intake.getCurrent());
+        joinedTelemetry.addData("Shooter", robot.shooter.getCurrent());
+        joinedTelemetry.addData("Drivetrain", robot.driveTrain.getCurrent());
+        joinedTelemetry.addData("FL", robot.driveTrain.fl.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("FR", robot.driveTrain.fr.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("BL", robot.driveTrain.bl.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("BR", robot.driveTrain.br.getCurrent(CurrentUnit.MILLIAMPS));
 
         for (LynxModule hub : robot.hubs) {
-            joinedTelemetry.addData(hub.getDeviceName()+": ", hub.getCurrent(CurrentUnit.MILLIAMPS)/1000);
+            joinedTelemetry.addData(hub.getDeviceName(), hub.getCurrent(CurrentUnit.MILLIAMPS)+", "+hub.getInputVoltage(VoltageUnit.MILLIVOLTS));
         }
         joinedTelemetry.addData("Hold Position", hold);
         joinedTelemetry.update();
