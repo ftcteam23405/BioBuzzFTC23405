@@ -11,6 +11,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalDistanceFilter;
 
@@ -43,12 +44,7 @@ public class Shooter {
         stop();
     }
 
-    // spin at a fixed velocity, stops distance tracking
 
-
-    // velocity follows the distance to the goal until stop() or setTargetVelocity()
-    // the filter isn't reset here: it still has the last pedro pose, so it picks up where it left off
-    // and keeps the drift correction it learned from the limelight
 
     public void stop() {
         setPower(0);
@@ -67,12 +63,8 @@ public class Shooter {
     }
 
 
-    // sets the target velocity from how far we are from the goal, using odometry + limelight
-    // robot: follower pose
-    // limelightDistance: from Limelight.freshDistanceToGoal(), which is NaN unless the limelight gave us a
-    // frame we haven't used yet. don't pass distanceToGoal() here, that reading repeats between frames and
-    // the filter would blend the same number in over and over
+    public double getCurrent() {
+        return shooterMotor.getCurrent(CurrentUnit.MILLIAMPS) / 1000;
+    }
 
-
-    // sets the target velocity from a limelight distance only (no pedro), still filtered
 }

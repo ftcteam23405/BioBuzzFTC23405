@@ -14,16 +14,14 @@ import org.firstinspires.ftc.teamcode.commandbase.Robot;
 
 @Config
 @Configurable
-//one single Teleop Class that handles all Teleop Commands, then added alliance through constructor
+
 public class Teleop extends OpMode {
 
     JoinedTelemetry joinedTelemetry;
 
     Robot robot;
     final Alliance alliance;
-
     public boolean hold = false;
-    public double speed = 1;
 
     public Teleop(Alliance alliance) {
         this.alliance = alliance;
@@ -54,19 +52,18 @@ public class Teleop extends OpMode {
         Scheduler.execute();
 
         robot.periodic();
-        //if the robot is not holding position, run the Teleop Drive
-        //if the alliance is Blue, then set the offset heading to PI rad. If not, then keep it 0 (for red)
+
 
         DrivePowers powers = ManualDrive.fieldCentric(
             -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(0) : Math.toRadians(180))
         );
+
         robot.follower.manual(powers);
-
-
         if (gamepad1.startWasPressed())
             robot.resetHeading();
+
         if (gamepad1.rightBumperWasPressed()) {
-            robot.shooter.setPower(0.5);
+            robot.shooter.setPower(0.55);
         }
         if (gamepad1.rightBumperWasReleased()) {
             robot.shooter.stop();
@@ -100,9 +97,8 @@ public class Teleop extends OpMode {
         joinedTelemetry.addLine();
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
         joinedTelemetry.addLine();
-
-        joinedTelemetry.addLine();
-
+        joinedTelemetry.addData("Intake: ", robot.intake.getCurrent());
+        joinedTelemetry.addData("Shooter", robot.shooter.getCurrent());
         joinedTelemetry.addData("Hold Position", hold);
         joinedTelemetry.update();
     }
