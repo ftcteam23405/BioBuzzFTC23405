@@ -22,10 +22,10 @@ public class DriveDirection extends OpMode {
     @Override
     public void init() {
 
-        frontLeftMotor = hardwareMap.get(DcMotorEx.class, "frontLeftMotor");
-        backLeftMotor = hardwareMap.get(DcMotorEx.class, "backLeftMotor");
-        frontRightMotor = hardwareMap.get(DcMotorEx.class, "frontRightMotor");
-        backRightMotor = hardwareMap.get(DcMotorEx.class, "backRightMotor");
+        frontLeftMotor = hardwareMap.get(DcMotorEx.class, "fl");
+        backLeftMotor = hardwareMap.get(DcMotorEx.class, "bl");
+        frontRightMotor = hardwareMap.get(DcMotorEx.class, "fr");
+        backRightMotor = hardwareMap.get(DcMotorEx.class, "br");
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         backLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
