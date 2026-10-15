@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.opmodes.autonomous;
+package org.firstinspires.ftc.teamcode.opmodes.autonomous.programs;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.api.PoseFactory;

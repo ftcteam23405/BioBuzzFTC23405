@@ -51,7 +51,6 @@ dependencies {
     implementation 'com.pedropathing:tuning:1.0.3-beta.1'
     implementation 'dev.nextftc.v2:control:0.2.1'
     implementation 'dev.nextftc.v2:hardware:0.2.1'
-    implementation 'dev.nextftc.v2:robot:0.2.1'
 
     implementation('com.github.haifengl:smile-interpolation:2.6.0') {
         exclude group: 'org.slf4j'
