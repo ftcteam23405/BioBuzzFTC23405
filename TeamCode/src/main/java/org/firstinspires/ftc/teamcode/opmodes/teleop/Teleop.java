@@ -66,18 +66,27 @@ public class Teleop extends OpMode {
             robot.resetHeading();
 
         if (gamepad1.rightBumperWasPressed()) {
-            robot.shooter.setPower(0.55);
+            robot.shooter.setPower(0.425);
         }
         if (gamepad1.rightBumperWasReleased()) {
             robot.shooter.stop();
         }
-
-
+        if (gamepad1.right_trigger > 0.5) {
+            robot.intake.intakeOn();
+        }
+        else{
+            robot.intake.intakeOff();
+        }
+        if (gamepad1.left_trigger_pressed) {
+            robot.latch.outtake();
+        }
+        else {
+            robot.latch.stop();
+        }
         if (gamepad1.xWasPressed())
             robot.latch.intake();
         if (gamepad1.bWasPressed())
             robot.latch.outtake();
-
 
 
         if (gamepad1.yWasPressed())

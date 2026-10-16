@@ -22,7 +22,7 @@ public class Latch {
 
     public void intake(){servo.setPower(1);}
     public void outtake(){servo.setPower(-1);}
-
+    public void stop(){servo.setPower(0);}
 
 
 
