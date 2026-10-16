@@ -58,7 +58,7 @@ public class Teleop extends OpMode {
         //if the alliance is Blue, then set the offset heading to PI rad. If not, then keep it 0 (for red)
         if (!hold) {
             DrivePowers powers = ManualDrive.fieldCentric(
-                    -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(0) : Math.toRadians(180))
+                    -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(180) : Math.toRadians(0))
             );
             robot.follower.manual(powers);
         }
@@ -100,8 +100,8 @@ public class Teleop extends OpMode {
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
         joinedTelemetry.addLine();
 
-        joinedTelemetry.addData("Turret Angle", robot.turret.getAngle());
-        joinedTelemetry.addData("Turret Target", robot.turret.getTargetAngle());
+        joinedTelemetry.addData("Turret Position (ticks)", robot.turret.getPosition());
+        joinedTelemetry.addData("Turret Target (ticks)", robot.turret.getTarget());
         joinedTelemetry.addData("Turret On Goal", robot.turret.atTarget());
         joinedTelemetry.addLine();
 

@@ -15,7 +15,10 @@ import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
 
 
-//turret deg = ticks / ticksPerDegree()
+// every position, target, limit and PID number in here is in ENCODER TICKS from zero (0 = shooter facing forward,
+// positive = left). degrees only show up in the aiming math (pedro + limelight), and get turned into ticks with
+// degreesToTicks() before they reach the PID. to command a degree, pass degreesToTicks(deg)
+// ~2.02 ticks per turret deg, ~725.5 ticks per turret turn
 
 @Configurable
 @Config
@@ -26,46 +29,45 @@ public class Turret {
     public static double gearRatio = 5;
                                                    // = 725.5 ticks per turret turn, ~2.02 ticks per deg
 
-    // target is clamped to these angles. they can go past +/-180 (e.g. -200 to 200) if the wiring allows it,
-    // tracking wraps the goal angle into this range and unwinds when it runs out
-    public static double minAngle = -150, maxAngle = 150;
+    // ticks. target is clamped to these. they can go past +/- half a turn (+/-363 ticks) if the wiring allows it,
+    // tracking wraps the goal into this range and unwinds when it runs out
+    public static double minTicks = -302, maxTicks = 302; // ~ +/-150 deg
 
-    // pos PID
-    public static double kP = 0.02;
+    // pos PID, all per tick of error
+    public static double kP = 0.0099;
     public static double kI = 0;
-    public static double kD = 0.0008;
+    public static double kD = 0.0004;
 
     public static double kS = 0.04;     // power to overcome friction
-    public static double kV = 0;        // power per deg/s the target is moving (robot turning), helps it keep up due to robot velocity
-    public static double iZone = 5;     // deg, the integral only builds up inside this much error
+    public static double kV = 0;        // power per tick/s the target is moving (robot turning), helps it keep up due to robot velocity
+    public static double iZone = 10;    // ticks, the integral only builds up inside this much error
     public static double maxPower = 0.8;
-    public static double tolerance = 1; // in deg
+    public static double tolerance = 2; // ticks
 
     // aiming
-    public static double pivotForward = 0, pivotLeft = 0; // turret pivot from the robot center (in), robot frame
-    public static double cameraYawOffset = 0;  // deg the limelight points left of where the shooter shoots
-    public static double maxCorrectionSpeed = 60; // deg/s. ignore the limelight while the turret slews faster than this,
-                                                  // tx is a frame behind and would be blended against the wrong turret angle
+    public static double pivotForward = 0, pivotLeft = 0;
+    public static double cameraYawOffset = 0;
+    public static double maxCorrectionSpeed = 121; // ticks/s (~60 deg/s). ignore the limelight while the turret slews faster than this, tx is a frame behind and would be blended against the wrong turret position
 
     private final DcMotorEx motor;
 
-    private boolean enabled = false;   // false = motor off, true = PID holds targetAngle
-    private boolean tracking = false;  // true = targetAngle follows the goal every loop
-    private double targetAngle = 0;
-    private double targetRate = 0;     // deg/s, from pedro, for kV
+    private boolean enabled = false;   // false = motor off, true = PID holds target
+    private boolean tracking = false;  // true = target follows the goal every loop
+    private double target = 0;         // ticks
+    private double targetRate = 0;     // ticks/s, from pedro, for kV
     private boolean clamped = false;   // the goal is past a travel limit, so the turret is parked at the limit
 
     // cached in periodic()
-    private int ticks = 0;
-    private double angle = 0, velocity = 0, power = 0;
+    private int rawTicks = 0;
+    private double position = 0, velocity = 0, power = 0; // ticks from zero, ticks/s
     private double lastError = 0, integral = 0;
     private long lastNanos = 0;
 
-    // encoder ticks when the shooter faces forward. static so it carries over from auto to teleop,
+    // raw encoder ticks when the shooter faces forward. static so it carries over from auto to teleop,
     // the hub doesn't reset the count between opmodes. NaN until the first Turret is made after the app starts
     private static double zeroTicks = Double.NaN;
 
-    // pedro pose + limelight = filtered turret angle to the closest goal center
+    // pedro pose + limelight = filtered turret angle (deg) to the closest goal center
     private final GoalAngleFilter angleFilter = new GoalAngleFilter();
     private double odometryAngle = 0;
     private double limelightAngle = Double.NaN;
@@ -85,28 +87,38 @@ public class Turret {
         stop();
     }
 
-    // wherever the turret is now becomes 0 deg. point the shooter straight forward first
+
+    public static double degreesToTicks(double degrees) {
+        return degrees * motorTicksPerRev * gearRatio / 360;
+    }
+
+    // ticks -> deg, for telemetry and the aiming math
+    public static double ticksToDegrees(double ticks) {
+        return ticks * 360 / (motorTicksPerRev * gearRatio);
+    }
+
+    // wherever the turret is now becomes 0 ticks. point the shooter straight forward first
     public void resetPosition() {
         resetPosition(0);
     }
 
-    // wherever the turret is now becomes this angle, e.g. pushed against a hard stop at a known angle
-    public void resetPosition(double degrees) {
-        zeroTicks = motor.getCurrentPosition() - degrees * ticksPerDegree();
+    // wherever the turret is now becomes this many ticks, e.g. pushed against a hard stop at a known position
+    public void resetPosition(double ticks) {
+        zeroTicks = motor.getCurrentPosition() - ticks;
         lastError = 0;
         integral = 0;
         readEncoder();
     }
 
-    // hold a fixed angle, stops tracking
-    public void setTargetAngle(double degrees) {
+    // hold a fixed position in ticks, stops tracking
+    public void setTarget(double ticks) {
         tracking = false;
         targetRate = 0;
         enabled = true;
-        setTarget(degrees);
+        updateTarget(ticks);
     }
 
-    // aim at the closest goal until stop() or setTargetAngle()
+    // aim at the closest goal until stop() or setTarget()
     // the filter isn't reset here, it keeps the drift correction it learned from the limelight
     public void startTracking() {
         tracking = true;
@@ -131,13 +143,13 @@ public class Turret {
     }
 
     // works out where to point at our alliance's closest goal. call every loop while tracking, before periodic()
-    // don't pass angle() here or the same frame gets blended in over and over
+    // don't pass the turret's own angle here or the same frame gets blended in over and over
     public void aim(Pose robot, Alliance alliance, double limelightAngle) {
         aim(robot, Shooter.closestGoal(robot, alliance), limelightAngle);
     }
 
     // same, at a goal that's already been picked (Robot picks it once per loop for the shooter and turret)
-    // limelightAngle must come from that goal's tags, see Limelight.freshAngle(int[])
+    // limelightAngle (deg) must come from that goal's tags, see Limelight.freshAngle(int[])
     // switching goals is fine, the filter moves with pedro's jump in angle and keeps its limelight correction
     public void aim(Pose robot, Pose goal, double limelightAngle) {
         if (!tracking) return;
@@ -145,10 +157,10 @@ public class Turret {
         odometryAngle = angleTo(robot, goal);
 
         // the limelight sees the goal tx deg to the right of the camera, which points cameraYawOffset left of
-        // the shooter. angle is from the last loop, which is closer to when the frame was taken anyway
+        // the shooter. position is from the last loop, which is closer to when the frame was taken anyway
         double measurement = Double.NaN;
         if (!Double.isNaN(limelightAngle)) {
-            measurement = GoalAngleFilter.wrap(angle + cameraYawOffset - limelightAngle);
+            measurement = GoalAngleFilter.wrap(ticksToDegrees(position) + cameraYawOffset - limelightAngle);
             this.limelightAngle = measurement;
             if (Math.abs(velocity) > maxCorrectionSpeed) measurement = Double.NaN;
         }
@@ -157,30 +169,36 @@ public class Turret {
         long now = System.nanoTime();
         double dt = (now - lastAimNanos) / 1e9;
         targetRate = (Double.isNaN(lastOdometryAngle) || dt <= 0 || dt > 0.5)
-                ? 0 : GoalAngleFilter.wrap(odometryAngle - lastOdometryAngle) / dt;
+                ? 0 : degreesToTicks(GoalAngleFilter.wrap(odometryAngle - lastOdometryAngle)) / dt;
         lastOdometryAngle = odometryAngle;
         lastAimNanos = now;
 
-        setTarget(unwrap(angleFilter.update(odometryAngle, measurement)));
+        updateTarget(unwrap(degreesToTicks(angleFilter.update(odometryAngle, measurement))));
     }
 
-    // the filter's angle is wrapped to (-180, 180], but the turret points the same way at that angle +/- 360.
+    // the filter's angle is wrapped to (-180, 180] deg, but the turret points the same way a whole turn either side.
     // picks the copy inside the travel limits closest to where the turret is now, so it takes the short way round
     // when it can and unwinds the long way when the short way is past a limit. if no copy is inside the limits,
-    // returns the one just past the closest limit, and setTarget() parks the turret at that limit
-    private double unwrap(double degrees) {
+    // returns the one just past the closest limit, and updateTarget() parks the turret at that limit
+    private double unwrap(double ticks) {
+        double turn = degreesToTicks(360);
         double best = Double.NaN;
-        for (double c = degrees + 360 * Math.ceil((minAngle - degrees) / 360); c <= maxAngle; c += 360) {
-            if (Double.isNaN(best) || Math.abs(c - angle) < Math.abs(best - angle)) best = c;
+        for (double c = ticks + turn * Math.ceil((minTicks - ticks) / turn); c <= maxTicks; c += turn) {
+            if (Double.isNaN(best) || Math.abs(c - position) < Math.abs(best - position)) best = c;
         }
         if (!Double.isNaN(best)) return best;
 
-        double pastMin = minAngle + GoalAngleFilter.wrap(degrees - minAngle);
-        double pastMax = maxAngle + GoalAngleFilter.wrap(degrees - maxAngle);
-        return Math.abs(pastMin - minAngle) < Math.abs(pastMax - maxAngle) ? pastMin : pastMax;
+        double pastMin = minTicks + wrapTicks(ticks - minTicks);
+        double pastMax = maxTicks + wrapTicks(ticks - maxTicks);
+        return Math.abs(pastMin - minTicks) < Math.abs(pastMax - maxTicks) ? pastMin : pastMax;
     }
 
-    // turret angle (robot frame) that points the shooter from the turret pivot at the goal
+    // any tick offset -> within half a turn either side of 0
+    private static double wrapTicks(double ticks) {
+        return degreesToTicks(GoalAngleFilter.wrap(ticksToDegrees(ticks)));
+    }
+
+    // turret angle in deg (robot frame) that points the shooter from the turret pivot at the goal
     public static double angleTo(Pose robot, Pose goal) {
         double heading = robot.heading();
         double pivotX = robot.x() + pivotForward * Math.cos(heading) - pivotLeft * Math.sin(heading);
@@ -203,8 +221,8 @@ public class Turret {
         lastNanos = now;
         if (dt <= 0 || dt > 0.5) dt = 0; // first loop, or the loop stalled: skip the I and D for this one
 
-        // both are unwrapped (the encoder counts straight through 180), unwrap() already picked which way round
-        double error = targetAngle - angle;
+        // both are unwrapped (the encoder counts straight through half a turn), unwrap() already picked which way round
+        double error = target - position;
 
         if (kI != 0 && Math.abs(error) < iZone) integral += error * dt;
         else integral = 0;
@@ -217,33 +235,29 @@ public class Turret {
         out = Range.clip(out, -maxPower, maxPower);
 
         // never push further past a limit (overshoot, or the turret wasn't forward when it was zeroed)
-        if ((angle >= maxAngle && out > 0) || (angle <= minAngle && out < 0)) out = 0;
+        if ((position >= maxTicks && out > 0) || (position <= minTicks && out < 0)) out = 0;
 
         setPower(out);
     }
 
-    private void setTarget(double degrees) {
-        double clipped = Range.clip(degrees, minAngle, maxAngle);
-        clamped = clipped != degrees;
+    // ticks, clamped to the travel limits
+    private void updateTarget(double ticks) {
+        double clipped = Range.clip(ticks, minTicks, maxTicks);
+        clamped = clipped != ticks;
 
         // a new target would show up as a huge derivative, start the D term from the new error
-        if (Math.abs(clipped - targetAngle) > iZone) {
-            lastError = clipped - angle;
+        if (Math.abs(clipped - target) > iZone) {
+            lastError = clipped - position;
             integral = 0;
         }
-        targetAngle = clipped;
+        target = clipped;
     }
 
     // one encoder read per loop, position and velocity both come out of the same bulk read
     private void readEncoder() {
-        ticks = motor.getCurrentPosition();
-        angle = (ticks - zeroTicks) / ticksPerDegree();
-        velocity = motor.getVelocity() / ticksPerDegree(); // the hub works this out from the encoder
-    }
-
-    // encoder ticks per turret degree
-    public static double ticksPerDegree() {
-        return motorTicksPerRev * gearRatio / 360;
+        rawTicks = motor.getCurrentPosition();
+        position = rawTicks - zeroTicks;
+        velocity = motor.getVelocity(); // ticks/s, the hub works this out from the encoder
     }
 
     private void setPower(double p) {
@@ -251,36 +265,45 @@ public class Turret {
         motor.setPower(p);
     }
 
-    // raw encoder count, 0 deg is at getZeroTicks()
-    public int getTicks() {
-        return ticks;
+    // raw encoder count, 0 ticks is at getZeroTicks()
+    public int getRawTicks() {
+        return rawTicks;
     }
 
     public double getZeroTicks() {
         return zeroTicks;
     }
 
-    public double getAngle() {
-        return angle;
+    // ticks from zero
+    public double getPosition() {
+        return position;
     }
 
-    // deg/s
+    // deg, for telemetry. same as ticksToDegrees(getPosition())
+    public double getAngle() {
+        return ticksToDegrees(position);
+    }
+
+    // ticks/s
     public double getVelocity() {
         return velocity;
     }
 
-    public double getTargetAngle() {
-        return targetAngle;
+    // ticks
+    public double getTarget() {
+        return target;
     }
 
+    // ticks
     public double getError() {
-        return targetAngle - angle;
+        return target - position;
     }
 
     public double getPower() {
         return power;
     }
 
+    // ticks/s
     public double getTargetRate() {
         return targetRate;
     }
@@ -304,12 +327,12 @@ public class Turret {
         targetRate = 0;
     }
 
-    // turret angle to the goal from pedro alone
+    // turret angle (deg) to the goal from pedro alone
     public double getOdometryAngle() {
         return odometryAngle;
     }
 
-    // the last turret angle to the goal from the limelight, NaN if it hasn't had one yet
+    // the last turret angle (deg) to the goal from the limelight, NaN if it hasn't had one yet
     public double getLimelightAngle() {
         return limelightAngle;
     }
@@ -330,12 +353,13 @@ public class Turret {
         return Commands.instant(this::startTracking);
     }
 
-    public CommandBuilder toAngle(double degrees) {
-        return Commands.instant(() -> setTargetAngle(degrees));
+    // ticks
+    public CommandBuilder toTarget(double ticks) {
+        return Commands.instant(() -> setTarget(ticks));
     }
 
     public CommandBuilder center() {
-        return toAngle(0);
+        return toTarget(0);
     }
 
     public CommandBuilder off() {
