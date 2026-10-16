@@ -22,6 +22,7 @@ import smile.interpolation.LinearInterpolation;
 public class Shooter {
 
 
+    // tune with ShooterPIDTuner: its feedforward sweep finds kS and kV, then kP by hand
     public static double kS = 0.08;      // power to overcome friction
     public static double kV = 0.00039;   // power per tick/s
     public static double kP = 0.01;      // power per tick/s of error
@@ -32,6 +33,8 @@ public class Shooter {
     public static double blueGoalX = 84;
     public static double audienceGoalY = 52;
     public static double farGoalY = 90;
+    public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
+                                               // so the turret doesn't flip-flop on the line halfway between them
 
     // pedro + limelight are combined in GoalDistanceFilter, tune it with GoalDistanceFilterTuner
 
@@ -45,6 +48,8 @@ public class Shooter {
 
     private double targetVelocity = 0;
     private boolean tracking = false; // true = velocity follows distance to the goal every loop
+    private double openLoopPower = Double.NaN; // not NaN = fixed power, no PID (for tuning the feedforward)
+    private double power = 0;
 
     // pedro pose + limelight -> filtered straight-line distance from the robot to the closest goal center
     private final GoalDistanceFilter distanceFilter = new GoalDistanceFilter();
@@ -55,8 +60,8 @@ public class Shooter {
     private double limelightDistance = Double.NaN;
 
     public Shooter(HardwareMap hardwareMap) {
-        topMotor = hardwareMap.get(DcMotorEx.class, "shooterMotorTop");
-        bottomMotor = hardwareMap.get(DcMotorEx.class, "shooterMotorBottom");
+        topMotor = hardwareMap.get(DcMotorEx.class, "sTop");
+        bottomMotor = hardwareMap.get(DcMotorEx.class, "sBottom");
 
         topMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
@@ -71,7 +76,15 @@ public class Shooter {
     // spin at a fixed velocity, stops distance tracking
     public void setTargetVelocity(double velocity) {
         tracking = false;
+        openLoopPower = Double.NaN;
         targetVelocity = Math.max(0, velocity);
+    }
+
+    // fixed power with no feedforward or PID, until stop() or setTargetVelocity(). for ShooterPIDTuner
+    public void setOpenLoopPower(double power) {
+        tracking = false;
+        targetVelocity = 0;
+        openLoopPower = Range.clip(power, 0, 1);
     }
 
     // velocity follows the distance to the goal until stop() or setTargetVelocity()
@@ -79,6 +92,7 @@ public class Shooter {
     // and keeps the drift correction it learned from the limelight
     public void startTracking() {
         tracking = true;
+        openLoopPower = Double.NaN;
     }
 
     public void stop() {
@@ -103,6 +117,11 @@ public class Shooter {
     }
 
     public void periodic() {
+        if (!Double.isNaN(openLoopPower)) {
+            setPower(openLoopPower);
+            return;
+        }
+
         if (targetVelocity == 0) {
             setPower(0);
             return;
@@ -116,8 +135,13 @@ public class Shooter {
     }
 
     private void setPower(double power) {
+        this.power = power;
         topMotor.setPower(power);
         bottomMotor.setPower(power);
+    }
+
+    public double getPower() {
+        return power;
     }
 
 
@@ -127,7 +151,12 @@ public class Shooter {
     // frame we haven't used yet. don't pass distanceToGoal() here, that reading repeats between frames and
     // the filter would blend the same number in over and over
     public void setVelocityFromDistance(Pose robot, Alliance alliance, double limelightDistance) {
-        Pose goal = closestGoal(robot, alliance);
+        setVelocityFromDistance(robot, closestGoal(robot, alliance), limelightDistance);
+    }
+
+    // same, at a goal that's already been picked (Robot picks it once per loop for the shooter and turret)
+    // limelightDistance must come from that goal's tags, see Limelight.freshDistanceToGoal(int[])
+    public void setVelocityFromDistance(Pose robot, Pose goal, double limelightDistance) {
         odometryDistance = robot.distance(goal);
         if (!Double.isNaN(limelightDistance)) this.limelightDistance = limelightDistance;
 
@@ -153,11 +182,23 @@ public class Shooter {
 
     // the one of our 2 cells that's closer to the robot
     public static Pose closestGoal(Pose robot, Alliance alliance) {
+        return closestGoal(robot, alliance, null);
+    }
+
+    // same, but sticks with current (the goal we're aiming at now, null for none) until the other one is
+    // goalSwitchMargin closer. a current goal that isn't one of this alliance's is ignored
+    public static Pose closestGoal(Pose robot, Alliance alliance, Pose current) {
         double goalX = alliance == Alliance.RED ? redGoalX : blueGoalX;
         Pose audienceGoal = new Pose(goalX, audienceGoalY);
         Pose farGoal = new Pose(goalX, farGoalY);
+        double toAudience = robot.distance(audienceGoal);
+        double toFar = robot.distance(farGoal);
 
-        return robot.distance(audienceGoal) < robot.distance(farGoal) ? audienceGoal : farGoal;
+        if (current != null && current.x() == goalX) {
+            if (current.y() == audienceGoalY && toAudience < toFar + goalSwitchMargin) return audienceGoal;
+            if (current.y() == farGoalY && toFar < toAudience + goalSwitchMargin) return farGoal;
+        }
+        return toAudience < toFar ? audienceGoal : farGoal;
     }
 
     // call after follower.setPose() mid-match, or the filter reads the jump as motion

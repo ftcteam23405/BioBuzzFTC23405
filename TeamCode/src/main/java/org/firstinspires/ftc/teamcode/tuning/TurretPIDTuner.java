@@ -20,6 +20,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 // under Turret and they take effect on the next loop. graph Target and Angle to see the step response
 
 // a = start/stop stepping   b = motor off   x = hold targetA   y = hold targetB
+// during init: back = zero the encoder (the turret's encoder is relative, point the shooter straight forward first)
 
 // how to tune, in order (run TurretTester first so the encoder and directions are right):
 // 1. everything 0 but kP. raise kP until it gets to the target quickly and overshoots a little
@@ -64,8 +65,11 @@ public class TurretPIDTuner extends OpMode {
 
     @Override
     public void init_loop() {
+        if (gamepad1.backWasPressed()) turret.resetPosition();
+
         turret.periodic();
         joinedTelemetry.addData("Angle", turret.getAngle());
+        joinedTelemetry.addLine("back to zero it here if the shooter is facing forward and Angle isn't 0");
         joinedTelemetry.addLine("a to start stepping between " + targetA() + " and " + targetB());
         joinedTelemetry.update();
     }

@@ -7,7 +7,7 @@ import com.pedropathing.math.Pose;
 // complementary filter for the distance from the robot to the goal center
 //
 // every loop:
-//   1. predict: dx = (distance from the NEW pedro pose to the goal) - (distance from the OLD pedro pose to the goal)
+//   1. predict: dx = (distance from the NEW pedro pose to the goal) - (distance from the OLD pedro pose to the OLD goal)
 //               x̂ = x̂ + dx, then the new pose is stored as the old pose for next time
 //   2. correct: only when the limelight has a NEW frame (y),
 //               x̂ = (1 - limelightWeight) * x̂ + limelightWeight * y
@@ -30,6 +30,7 @@ public class GoalDistanceFilter {
     public static int maxRejects = 10;          // after this many ignored readings in a row, trust the limelight and snap to it
 
     private Pose lastPose = null;  // last pedro pose given to the filter
+    private Pose lastGoal = null;  // and the goal it was aiming at
     private double estimate = 0;   // x̂
     private double dx = 0;         // change in distance from pedro on the last update
     private boolean started = false;
@@ -41,14 +42,17 @@ public class GoalDistanceFilter {
         if (!started) {
             start(robot.distance(goal), measurement);
             lastPose = robot;
+            lastGoal = goal;
             return estimate;
         }
 
-        // predict. both distances use the same goal, so switching to the other goal doesn't count as motion
+        // predict. switching to the other goal jumps the estimate by the difference in pedro's distances,
+        // the same way the robot driving would, so it keeps the drift correction from the limelight
         // (lastPose is null if the filter was started by update(measurement), then there's no motion to add yet)
-        dx = lastPose == null ? 0 : robot.distance(goal) - lastPose.distance(goal);
+        dx = lastPose == null ? 0 : robot.distance(goal) - lastPose.distance(lastGoal);
         estimate += dx;
         lastPose = robot;
+        lastGoal = goal;
 
         correct(measurement);
         return estimate;
@@ -99,6 +103,7 @@ public class GoalDistanceFilter {
     public void reset() {
         started = false;
         lastPose = null;
+        lastGoal = null;
         estimate = 0;
         dx = 0;
         rejects = 0;

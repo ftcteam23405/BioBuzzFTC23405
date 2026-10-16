@@ -5,7 +5,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.ivy.CommandBuilder;
 import com.pedropathing.ivy.commands.Commands;
 import com.pedropathing.math.Pose;
-import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -16,24 +15,19 @@ import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
 
 
-// position comes from absolute analog output : 0-3.2V = 0-360 deg of the
-// encoder, so turret deg = volts * degreesPerVolt()
+//turret deg = ticks / ticksPerDegree()
 
 @Configurable
 @Config
 public class Turret {
 
     // encoder
-    public static double maxVoltage = 3.2;         // analog output at 360 deg, 3.2V on a 3.3V hub per the melonbotics docs
-    public static double gearRatio = 125.0 / 25.0;
-                                                   // turret has to start within +/-36 deg of forward
-    public static boolean encoderReversed = false; // flip if angle goes down when the turret turns left
-    public static double encoderOffset = 0;        // raw degrees when the shooter faces the robot's front
+    public static double motorTicksPerRev = 145.1; // goBILDA 1150 rpm yellow jacket (5.2:1): 28 ticks * 5.2 at the output shaft
+    public static double gearRatio = 5;
+                                                   // = 725.5 ticks per turret turn, ~2.02 ticks per deg
 
-
-    public static boolean motorReversed = false;
-
-    // target is clamped to these angles
+    // target is clamped to these angles. they can go past +/-180 (e.g. -200 to 200) if the wiring allows it,
+    // tracking wraps the goal angle into this range and unwinds when it runs out
     public static double minAngle = -150, maxAngle = 150;
 
     // pos PID
@@ -54,7 +48,6 @@ public class Turret {
                                                   // tx is a frame behind and would be blended against the wrong turret angle
 
     private final DcMotorEx motor;
-    private final AnalogInput encoder;
 
     private boolean enabled = false;   // false = motor off, true = PID holds targetAngle
     private boolean tracking = false;  // true = targetAngle follows the goal every loop
@@ -63,17 +56,14 @@ public class Turret {
     private boolean clamped = false;   // the goal is past a travel limit, so the turret is parked at the limit
 
     // cached in periodic()
-    private double voltage = 0, angle = 0, velocity = 0, power = 0;
+    private int ticks = 0;
+    private double angle = 0, velocity = 0, power = 0;
     private double lastError = 0, integral = 0;
-    private long lastNanos = 0, lastReadNanos = 0;
+    private long lastNanos = 0;
 
-    // encoder turns counted past the seam, only ever nonzero when gearRatio isn't 1
-    private int wraps = 0;
-    private double lastEncoderAngle = Double.NaN;
-
-    // static so it carries over from auto to teleop: the new Turret works out its wrap count from where the
-    // last one left off, instead of assuming the turret is near forward. back to 0 if the app restarts
-    private static double lastKnownAngle = 0;
+    // encoder ticks when the shooter faces forward. static so it carries over from auto to teleop,
+    // the hub doesn't reset the count between opmodes. NaN until the first Turret is made after the app starts
+    private static double zeroTicks = Double.NaN;
 
     // pedro pose + limelight = filtered turret angle to the closest goal center
     private final GoalAngleFilter angleFilter = new GoalAngleFilter();
@@ -83,32 +73,29 @@ public class Turret {
     private long lastAimNanos = 0;
 
     public Turret(HardwareMap hardwareMap) {
-        motor = hardwareMap.get(DcMotorEx.class, "turretMotor");
-        encoder = hardwareMap.get(AnalogInput.class, "turretEncoder");
+        motor = hardwareMap.get(DcMotorEx.class, "turret");
 
-        motor.setDirection(motorReversed ? DcMotorSimple.Direction.REVERSE : DcMotorSimple.Direction.FORWARD);
+
+        motor.setDirection(DcMotorSimple.Direction.FORWARD);
         motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        resetWraps(lastKnownAngle);
+        if (Double.isNaN(zeroTicks)) zeroTicks = motor.getCurrentPosition();
+        readEncoder();
         stop();
     }
 
-    // works the wrap count out again, picking whichever one puts the turret closest to nearAngle
-    // the encoder alone can't tell which of its 5 turns it's on, so this is only right if the turret is
-    // within +/-180 / gearRatio (36) deg of nearAngle. call it with the turret still
-    public void resetWraps(double nearAngle) {
-        voltage = encoder.getVoltage();
-        double encoderAngle = GoalAngleFilter.wrap(getRawDegrees() - encoderOffset);
+    // wherever the turret is now becomes 0 deg. point the shooter straight forward first
+    public void resetPosition() {
+        resetPosition(0);
+    }
 
-        // turret angle = (encoderAngle + 360 * wraps) / gearRatio, solved for the wraps closest to nearAngle
-        wraps = (int) Math.round((nearAngle * gearRatio - encoderAngle) / 360);
-        lastEncoderAngle = encoderAngle;
-        angle = (encoderAngle + 360 * wraps) / gearRatio;
-        lastKnownAngle = angle;
-
-        velocity = 0;
-        lastReadNanos = 0;
+    // wherever the turret is now becomes this angle, e.g. pushed against a hard stop at a known angle
+    public void resetPosition(double degrees) {
+        zeroTicks = motor.getCurrentPosition() - degrees * ticksPerDegree();
+        lastError = 0;
+        integral = 0;
+        readEncoder();
     }
 
     // hold a fixed angle, stops tracking
@@ -143,12 +130,18 @@ public class Turret {
         return enabled;
     }
 
-    // works out where to point. call every loop while tracking, before periodic()
+    // works out where to point at our alliance's closest goal. call every loop while tracking, before periodic()
     // don't pass angle() here or the same frame gets blended in over and over
     public void aim(Pose robot, Alliance alliance, double limelightAngle) {
+        aim(robot, Shooter.closestGoal(robot, alliance), limelightAngle);
+    }
+
+    // same, at a goal that's already been picked (Robot picks it once per loop for the shooter and turret)
+    // limelightAngle must come from that goal's tags, see Limelight.freshAngle(int[])
+    // switching goals is fine, the filter moves with pedro's jump in angle and keeps its limelight correction
+    public void aim(Pose robot, Pose goal, double limelightAngle) {
         if (!tracking) return;
 
-        Pose goal = Shooter.closestGoal(robot, alliance);
         odometryAngle = angleTo(robot, goal);
 
         // the limelight sees the goal tx deg to the right of the camera, which points cameraYawOffset left of
@@ -168,7 +161,23 @@ public class Turret {
         lastOdometryAngle = odometryAngle;
         lastAimNanos = now;
 
-        setTarget(angleFilter.update(odometryAngle, measurement));
+        setTarget(unwrap(angleFilter.update(odometryAngle, measurement)));
+    }
+
+    // the filter's angle is wrapped to (-180, 180], but the turret points the same way at that angle +/- 360.
+    // picks the copy inside the travel limits closest to where the turret is now, so it takes the short way round
+    // when it can and unwinds the long way when the short way is past a limit. if no copy is inside the limits,
+    // returns the one just past the closest limit, and setTarget() parks the turret at that limit
+    private double unwrap(double degrees) {
+        double best = Double.NaN;
+        for (double c = degrees + 360 * Math.ceil((minAngle - degrees) / 360); c <= maxAngle; c += 360) {
+            if (Double.isNaN(best) || Math.abs(c - angle) < Math.abs(best - angle)) best = c;
+        }
+        if (!Double.isNaN(best)) return best;
+
+        double pastMin = minAngle + GoalAngleFilter.wrap(degrees - minAngle);
+        double pastMax = maxAngle + GoalAngleFilter.wrap(degrees - maxAngle);
+        return Math.abs(pastMin - minAngle) < Math.abs(pastMax - maxAngle) ? pastMin : pastMax;
     }
 
     // turret angle (robot frame) that points the shooter from the turret pivot at the goal
@@ -194,7 +203,7 @@ public class Turret {
         lastNanos = now;
         if (dt <= 0 || dt > 0.5) dt = 0; // first loop, or the loop stalled: skip the I and D for this one
 
-        // no wrap needed, the turret can't go around the back so the short way is the only way
+        // both are unwrapped (the encoder counts straight through 180), unwrap() already picked which way round
         double error = targetAngle - angle;
 
         if (kI != 0 && Math.abs(error) < iZone) integral += error * dt;
@@ -207,7 +216,7 @@ public class Turret {
         if (Math.abs(error) > tolerance) out += kS * Math.signum(error);
         out = Range.clip(out, -maxPower, maxPower);
 
-        // never push further past a limit (overshoot, or encoderOffset is wrong)
+        // never push further past a limit (overshoot, or the turret wasn't forward when it was zeroed)
         if ((angle >= maxAngle && out > 0) || (angle <= minAngle && out < 0)) out = 0;
 
         setPower(out);
@@ -225,33 +234,16 @@ public class Turret {
         targetAngle = clipped;
     }
 
-    // one encoder read per loop
+    // one encoder read per loop, position and velocity both come out of the same bulk read
     private void readEncoder() {
-        voltage = encoder.getVoltage();
-
-        // encoder angle in (-180, 180]. jumping more than half a turn in one loop means it crossed the seam
-        double encoderAngle = GoalAngleFilter.wrap(getRawDegrees() - encoderOffset);
-        if (!Double.isNaN(lastEncoderAngle)) {
-            if (encoderAngle - lastEncoderAngle > 180) wraps--;
-            else if (encoderAngle - lastEncoderAngle < -180) wraps++;
-        }
-        lastEncoderAngle = encoderAngle;
-
-        double newAngle = (encoderAngle + 360 * wraps) / gearRatio;
-
-        long now = System.nanoTime();
-        double dt = (now - lastReadNanos) / 1e9;
-        if (lastReadNanos != 0 && dt > 0 && dt < 0.5)
-            velocity = 0.7 * velocity + 0.3 * (newAngle - angle) / dt; // a little smoothing, the analog signal is noisy
-        lastReadNanos = now;
-
-        angle = newAngle;
-        lastKnownAngle = angle;
+        ticks = motor.getCurrentPosition();
+        angle = (ticks - zeroTicks) / ticksPerDegree();
+        velocity = motor.getVelocity() / ticksPerDegree(); // the hub works this out from the encoder
     }
 
-    // turret deg per volt of encoder output
-    public static double degreesPerVolt() {
-        return 360 / maxVoltage / gearRatio;
+    // encoder ticks per turret degree
+    public static double ticksPerDegree() {
+        return motorTicksPerRev * gearRatio / 360;
     }
 
     private void setPower(double p) {
@@ -259,26 +251,20 @@ public class Turret {
         motor.setPower(p);
     }
 
-    // encoder angle before encoderOffset, 0..360 of the ENCODER, not the turret
-    // read this with the shooter facing forward to set encoderOffset
-    public double getRawDegrees() {
-        double deg = Range.clip(voltage / maxVoltage, 0, 1) * 360;
-        return encoderReversed ? 360 - deg : deg;
+    // raw encoder count, 0 deg is at getZeroTicks()
+    public int getTicks() {
+        return ticks;
     }
 
-    public double getVoltage() {
-        return voltage;
-    }
-
-    public int getWraps() {
-        return wraps;
+    public double getZeroTicks() {
+        return zeroTicks;
     }
 
     public double getAngle() {
         return angle;
     }
 
-    // deg/s, smoothed
+    // deg/s
     public double getVelocity() {
         return velocity;
     }

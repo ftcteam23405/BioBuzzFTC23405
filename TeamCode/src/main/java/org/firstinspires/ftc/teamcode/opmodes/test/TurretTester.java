@@ -13,16 +13,20 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 //
 // dpad up/down    = target +/- bigStep       dpad left/right = target +/- smallStep (left = turret left)
 // a = go to 0 (front)   x = go to leftPreset   b = go to rightPreset   y = motor off (turn it by hand)
-// back = redo the encoder wrap count assuming the turret is within 36 deg of forward (motor off, turret still)
+// back = zero the encoder: wherever the turret is now becomes 0 deg (motor off, shooter pointed straight forward)
+//
+// the encoder is relative (the 1150 rpm motor's own encoder), so 0 deg is wherever the turret was when the first
+// Turret was made after the app started. press back to re-zero it any time
 //
 // setting up the encoder, with the motor off (y):
-// 1. set Turret.gearRatio: turret ring teeth / encoder gear teeth (1 if the encoder is on the turret's axis)
-// 2. turn the turret left by hand. ANGLE should go up, if it goes down flip Turret.encoderReversed
-// 3. point the shooter straight forward, copy RAW DEG into Turret.encoderOffset, press back. ANGLE should read 0
-// 4. turn the turret 90 deg left by hand (use a square), ANGLE should read 90. if it's off by a factor,
-//    gearRatio is wrong. if Voltage never gets near 3.2 at the top of a turn, set maxVoltage to what it peaks at
+// 1. Turret.motorTicksPerRev = 145.1 for the 1150 rpm motor, Turret.gearRatio = 5 for the 5:1 turret reduction
+// 2. point the shooter straight forward, press back. ANGLE should read 0
+// 3. turn the turret left by hand. ANGLE should go up, if it goes down change the motor direction in Turret's constructor
+//    (that flips the power and the encoder together, so it can't end up fighting itself)
+// 4. turn the turret 90 deg left by hand (use a square), ANGLE should read 90 and TICKS should have moved ~181.
+//    if it's off by a factor, gearRatio or motorTicksPerRev is wrong
 // 5. turn it to each hard stop, put a few deg inside those numbers into Turret.minAngle / maxAngle
-// then press a. if the turret runs away from the target instead of to it, flip Turret.motorReversed and restart
+// then press a, it should drive to 0
 @Configurable
 @Config
 @TeleOp
@@ -64,7 +68,7 @@ public class TurretTester extends OpMode {
         if (gamepad1.xWasPressed()) goTo(leftPreset);
         if (gamepad1.bWasPressed()) goTo(rightPreset);
         if (gamepad1.yWasPressed()) turret.stop();
-        if (gamepad1.backWasPressed() && !turret.isEnabled()) turret.resetWraps(0);
+        if (gamepad1.backWasPressed() && !turret.isEnabled()) turret.resetPosition();
 
         turret.periodic();
         addTelemetry();
@@ -85,10 +89,8 @@ public class TurretTester extends OpMode {
         telemetry.addData("Power", "%.3f", turret.getPower());
         telemetry.addData("Velocity", "%.1f deg/s", turret.getVelocity());
         telemetry.addLine();
-        telemetry.addData("RAW DEG", "%.2f  <- encoderOffset", turret.getRawDegrees());
-        telemetry.addData("Voltage", "%.3f / %.2f V  (%.1f turret deg per V)", turret.getVoltage(), Turret.maxVoltage, Turret.degreesPerVolt());
-        if (Turret.gearRatio != 1)
-            telemetry.addData("Encoder wraps", turret.getWraps());
+        telemetry.addData("TICKS", "%d  (zero at %.0f)", turret.getTicks(), turret.getZeroTicks());
+        telemetry.addData("Ticks per deg", "%.3f  (%.1f per turret turn)", Turret.ticksPerDegree(), Turret.ticksPerDegree() * 360);
         telemetry.addData("Limits", "%.0f to %.0f deg", Turret.minAngle, Turret.maxAngle);
         telemetry.addData("Gains", "kP %.4f  kI %.4f  kD %.4f  kS %.3f", Turret.kP, Turret.kI, Turret.kD, Turret.kS);
         telemetry.update();

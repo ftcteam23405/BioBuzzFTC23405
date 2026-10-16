@@ -33,6 +33,7 @@ public class Robot {
     private final List<LynxModule> hubs;
     private final com.pedropathing.utils.Timer loopTimer = new com.pedropathing.utils.Timer();
     private static Pose endPose = new Pose(0, 0, 0);
+    private Pose goal = null; // our alliance's goal the shooter and turret are aiming at, picked every loop
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
     public Robot(HardwareMap hardwareMap, Alliance alliance) {
@@ -73,14 +74,20 @@ public class Robot {
         // one read of the limelight per loop, everything below just uses what it cached
         limelight.periodic();
 
-        // freshDistanceToGoal() is NaN unless a new tag frame came in this loop, which is what the
-        // filter wants: pedro moves the estimate every loop, the limelight corrects it once per frame
+        // the closer of our alliance's 2 goals, picked once so the shooter and turret always agree. only that
+        // goal's tags go to the filters, a tag on our other goal would drag them toward the wrong one
+        Pose pose = follower.pose();
+        goal = Shooter.closestGoal(pose, alliance, goal);
+        int[] goalTags = cellTags(goal);
+
+        // the fresh readings are NaN unless a new tag frame came in this loop, which is what the
+        // filters want: pedro moves the estimate every loop, the limelight corrects it once per frame
         if (shooter.isTracking())
-            shooter.setVelocityFromDistance(follower.pose(), alliance, limelight.freshDistanceToGoal());
+            shooter.setVelocityFromDistance(pose, goal, limelight.freshDistanceToGoal(goalTags));
         shooter.periodic();
 
         // same deal for the turret: pedro turns it with the robot every loop, a new tag frame's tx corrects it
-        turret.aim(follower.pose(), alliance, limelight.freshAngle());
+        turret.aim(pose, goal, limelight.freshAngle(goalTags));
         turret.periodic();
     }
 
@@ -101,6 +108,7 @@ public class Robot {
     // call after moving the robot's position with follower.setPose(), or the filters read the jump as motion
     public void setPose(Pose pose) {
         follower.setPose(pose);
+        goal = null; // pick the closest goal fresh from the new pose
         shooter.resetFilter();
         turret.resetFilter();
     }
@@ -112,9 +120,13 @@ public class Robot {
     private static final int[] BLUE_AUDIENCE_TAGS = {38, 39, 40, 41};
     private static final int[] BLUE_FAR_TAGS = {42, 43, 44, 45};
 
-    // tag ids on our alliance's cell that's closest to the robot
+    // tag ids on our alliance's cell that's closest to the robot (the one we're aiming at)
     public int[] closestCellTags() {
-        Pose goal = Shooter.closestGoal(follower.pose(), alliance);
+        return cellTags(goal != null ? goal : Shooter.closestGoal(follower.pose(), alliance));
+    }
+
+    // tag ids on one of our alliance's cells, from Shooter.closestGoal()
+    private int[] cellTags(Pose goal) {
         boolean audience = goal.y() == Shooter.audienceGoalY;
 
         if (alliance == Alliance.RED)

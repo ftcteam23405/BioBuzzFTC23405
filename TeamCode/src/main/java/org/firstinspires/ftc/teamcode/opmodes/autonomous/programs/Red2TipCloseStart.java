@@ -19,6 +19,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
+import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 
 @Configurable
 @Autonomous
@@ -66,7 +67,8 @@ public class Red2TipCloseStart extends OpMode {
     @Override
     public void init() {
         Scheduler.reset();
-        robot.follower.setPose(startPose);
+        robot = new Robot(hardwareMap, Alliance.RED);
+        robot.setPose(startPose);
     }
 
     @Override
@@ -87,6 +89,12 @@ public class Red2TipCloseStart extends OpMode {
         telemetry.addData("Path completion", robot.follower.completion());
         telemetry.addData("Distance remaining in path", robot.follower.remainingDistance());
         telemetry.update();
+    }
+
+    @Override
+    public void stop() {
+        robot.setEnd(); // so teleop starts from where auto left off and the turret aims from the right spot
+        Scheduler.reset();
     }
 
 }

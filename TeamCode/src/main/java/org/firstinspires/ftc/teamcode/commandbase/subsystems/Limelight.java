@@ -47,6 +47,7 @@ public class Limelight {
     private double goalDistance = Double.NaN;          // inches to the closest goal center, NaN if no tag
     private double goalAngle = Double.NaN;             // deg from the crosshair to that goal center
     private Map<Integer, Double> tagDistances = new LinkedHashMap<>();
+    private Map<Integer, Double> tagAngles = new LinkedHashMap<>();
     private List<Integer> tagIds = new ArrayList<>();
     private boolean newTagFrame = false;               // true only on the loop a new limelight frame arrived
     private long lastFrameStamp = Long.MIN_VALUE;      // hub timestamp of the last frame we used
@@ -178,6 +179,7 @@ public class Limelight {
 
         List<Integer> ids = new ArrayList<>();
         Map<Integer, Double> distances = new LinkedHashMap<>();
+        Map<Integer, Double> angles = new LinkedHashMap<>();
         double closest = Double.NaN;
         double closestAngle = Double.NaN;
 
@@ -187,13 +189,15 @@ public class Limelight {
             double d = distanceToGoalCenter(tag);
             if (Double.isNaN(d)) continue;
 
+            double a = angleToGoalCenter(tag);
             ids.add(tag.getFiducialId());
             distances.put(tag.getFiducialId(), d);
+            angles.put(tag.getFiducialId(), a);
 
-            // the pipeline only detects our alliance's tags, so the closest tag is on the closest goal
+            // the pipeline only detects our alliance's tags, so the closest tag is on one of our 2 goals
             if (Double.isNaN(closest) || d < closest) {
                 closest = d;
-                closestAngle = angleToGoalCenter(tag);
+                closestAngle = a;
             }
         }
 
@@ -201,6 +205,7 @@ public class Limelight {
 
         tagIds = ids;
         tagDistances = distances;
+        tagAngles = angles;
         goalDistance = closest;
         goalAngle = closestAngle;
         newTagFrame = true;
@@ -216,6 +221,7 @@ public class Limelight {
         goalDistance = Double.NaN;
         goalAngle = Double.NaN;
         tagDistances = new LinkedHashMap<>();
+        tagAngles = new LinkedHashMap<>();
         tagIds = new ArrayList<>();
     }
 
@@ -239,6 +245,28 @@ public class Limelight {
 
     public double freshAngle() {
         return newTagFrame ? goalAngle : Double.NaN;
+    }
+
+    // freshDistanceToGoal() / freshAngle(), but only from the tags on one cell (e.g. Robot.closestCellTags()),
+    // so a tag on our other cell can't get blended into the estimate for this one. NaN if none are in view
+    public double freshDistanceToGoal(int[] cellTags) {
+        int id = closestTag(cellTags);
+        return newTagFrame && id >= 0 ? tagDistances.get(id) : Double.NaN;
+    }
+
+    public double freshAngle(int[] cellTags) {
+        int id = closestTag(cellTags);
+        return newTagFrame && id >= 0 ? tagAngles.get(id) : Double.NaN;
+    }
+
+    // the visible tag from cellTags with the shortest distance reading, -1 if none are visible
+    private int closestTag(int[] cellTags) {
+        int best = -1;
+        for (int id : cellTags) {
+            Double d = tagDistances.get(id);
+            if (d != null && (best < 0 || d < tagDistances.get(best))) best = id;
+        }
+        return best;
     }
 
     public boolean hasTarget() {

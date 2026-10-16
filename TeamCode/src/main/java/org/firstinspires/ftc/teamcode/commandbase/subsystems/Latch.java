@@ -17,7 +17,7 @@ public class Latch {
     public static double openPos = 0.2;
 
     public Latch(HardwareMap hardwareMap){
-        latchServo = hardwareMap.get(Servo.class, "latchServo");
+        latchServo = hardwareMap.get(Servo.class, "latch");
     }
 
     public void close() {
