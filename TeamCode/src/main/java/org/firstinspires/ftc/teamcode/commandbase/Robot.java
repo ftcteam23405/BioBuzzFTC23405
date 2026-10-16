@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Latch;
+import org.firstinspires.ftc.teamcode.commandbase.subsystems.Light;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Limelight;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
@@ -28,6 +29,7 @@ public class Robot {
     public final Turret turret;
     public final Limelight limelight;
     public final Follower follower;
+    public final Light light;
     public Alliance alliance;
 
     private final List<LynxModule> hubs;
@@ -44,6 +46,7 @@ public class Robot {
         turret = new Turret(hardwareMap);
         limelight = new Limelight(hardwareMap, alliance);
         follower = Constants.create(hardwareMap);
+        light = new Light(hardwareMap);
 
         hubs = hardwareMap.getAll(LynxModule.class);
         for (LynxModule hub : hubs) {
@@ -66,6 +69,18 @@ public class Robot {
         }
 
         follower.update();
+
+        if (!shooter.atTarget()) {
+            light.notAtRPM();
+        } else {
+            light.toAtTargetColor();
+        }
+
+        if (!intake.isFull()) {
+            light.intakeNotFull();
+        } else {
+            light.toIntakeFullColor();
+        }
 
         // the limelight can only run one pipeline, so claim the tags one while the shooter or turret is tracking
         if (shooter.isTracking() || turret.isTracking())
