@@ -32,7 +32,7 @@ public class Constants {
                 c.podType.set(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
                 c.xPodOffset.set(3.38909);
                 c.yPodOffset.set(-0.78475);
-                c.xPodDirection.set(GoBildaPinpointDriver.EncoderDirection.FORWARD);
+                c.xPodDirection.set(GoBildaPinpointDriver.EncoderDirection.REVERSED);
                 c.yPodDirection.set(GoBildaPinpointDriver.EncoderDirection.FORWARD);
             }
     );

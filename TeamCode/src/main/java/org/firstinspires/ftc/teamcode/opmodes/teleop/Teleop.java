@@ -58,7 +58,7 @@ public class Teleop extends OpMode {
 
 
         DrivePowers powers = ManualDrive.fieldCentric(
-            -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(0) : Math.toRadians(180))
+            -gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(180) : Math.toRadians(0))
         );
 
         robot.follower.manual(powers);
