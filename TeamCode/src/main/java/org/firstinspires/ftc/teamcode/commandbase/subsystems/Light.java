@@ -17,7 +17,7 @@ public class Light {
     public static double defaultColor = 0.277;
 
     public Light(HardwareMap hardwareMap) {
-        rpmLight = hardwareMap.get(Servo.class, "rpmLight");
+//        rpmLight = hardwareMap.get(Servo.class, "rpmLight");
         intakeLight = hardwareMap.get(Servo.class, "intakeLight");
     }
 
@@ -25,13 +25,13 @@ public class Light {
         intakeLight.setPosition(intakeFullColor);
     }
 
-    public void toAtTargetColor() {
-        rpmLight.setPosition(atShooterTargetColor);
-    }
+//    public void toAtTargetColor() {
+//        rpmLight.setPosition(atShooterTargetColor);
+//    }
 
-    public void notAtRPM() {
-        rpmLight.setPosition(defaultColor);
-    }
+//    public void notAtRPM() {
+//        rpmLight.setPosition(defaultColor);
+//    }
 
     public void intakeNotFull() {
         intakeLight.setPosition(defaultColor);

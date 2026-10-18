@@ -70,11 +70,11 @@ public class Robot {
 
         follower.update();
 
-        if (!shooter.atTarget()) {
-            light.notAtRPM();
-        } else {
-            light.toAtTargetColor();
-        }
+//        if (!shooter.atTarget()) {
+//            light.notAtRPM();
+//        } else {
+//            light.toAtTargetColor();
+//        }
 
         if (!intake.isFull()) {
             light.intakeNotFull();
