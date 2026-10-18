@@ -71,7 +71,7 @@ public class Turret {
     private final GoalAngleFilter angleFilter = new GoalAngleFilter();
     private double odometryAngle = 0;
     private double limelightAngle = Double.NaN;
-    private double lastOdometryAngle = Double.NaN;
+    private Pose lastAimPose = null; // pedro pose on the last aim(), null after resetFilter()
     private long lastAimNanos = 0;
 
     public Turret(HardwareMap hardwareMap) {
@@ -156,22 +156,29 @@ public class Turret {
 
         odometryAngle = angleTo(robot, goal);
 
-        // the limelight sees the goal tx deg to the right of the camera, which points cameraYawOffset left of
-        // the shooter. position is from the last loop, which is closer to when the frame was taken anyway
-        double measurement = Double.NaN;
-        if (!Double.isNaN(limelightAngle)) {
-            measurement = GoalAngleFilter.wrap(ticksToDegrees(position) + cameraYawOffset - limelightAngle);
-            this.limelightAngle = measurement;
-            if (Math.abs(velocity) > maxCorrectionSpeed) measurement = Double.NaN;
-        }
-
-        // how fast the goal is moving across the robot frame, mostly the robot turning
+        // how far the goal moved across the robot frame since the last loop, mostly the robot turning.
+        // both angles are to THIS goal, so switching goals isn't counted as the robot moving.
+        // 0 on the first loop, after resetFilter(), or when the last aim() was a while ago (not tracking)
         long now = System.nanoTime();
         double dt = (now - lastAimNanos) / 1e9;
-        targetRate = (Double.isNaN(lastOdometryAngle) || dt <= 0 || dt > 0.5)
-                ? 0 : degreesToTicks(GoalAngleFilter.wrap(odometryAngle - lastOdometryAngle)) / dt;
-        lastOdometryAngle = odometryAngle;
+        boolean lastLoop = lastAimPose != null && dt > 0 && dt <= 0.5;
+        double motion = lastLoop ? GoalAngleFilter.wrap(odometryAngle - angleTo(lastAimPose, goal)) : 0;
+        lastAimPose = robot;
         lastAimNanos = now;
+
+        // the limelight sees the goal tx deg to the right of the camera, which points cameraYawOffset left of
+        // the shooter. position is from the last loop's encoder read, so that's where the goal was LAST loop,
+        // but the filter's estimate has already moved with this loop's pedro change. move the measurement by
+        // the same amount, or it drags the turret a loop behind whenever the robot turns
+        double measurement = Double.NaN;
+        if (!Double.isNaN(limelightAngle)) {
+            measurement = GoalAngleFilter.wrap(ticksToDegrees(position) + cameraYawOffset - limelightAngle + motion);
+            if (Math.abs(velocity) > maxCorrectionSpeed) measurement = Double.NaN;
+            this.limelightAngle = measurement;
+        }
+
+        // how fast the goal is moving across the robot frame, for kV
+        targetRate = lastLoop ? degreesToTicks(motion) / dt : 0;
 
         updateTarget(unwrap(degreesToTicks(angleFilter.update(odometryAngle, measurement))));
     }
@@ -323,7 +330,7 @@ public class Turret {
         angleFilter.reset();
         odometryAngle = 0;
         limelightAngle = Double.NaN;
-        lastOdometryAngle = Double.NaN;
+        lastAimPose = null;
         targetRate = 0;
     }
 

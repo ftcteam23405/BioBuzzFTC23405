@@ -22,7 +22,7 @@ import smile.interpolation.LinearInterpolation;
 public class Shooter {
 
 
-    // tune with ShooterPIDTuner: its feedforward sweep finds kS and kV, then kP by hand
+    // tune with ShooterAutoTuner: press a and it finds all three, then paste the lines it prints here
     public static double kS = 0.08;      // power to overcome friction
     public static double kV = 0.00039;   // power per tick/s
     public static double kP = 0.01;      // power per tick/s of error
@@ -80,7 +80,7 @@ public class Shooter {
         targetVelocity = Math.max(0, velocity);
     }
 
-    // fixed power with no feedforward or PID, until stop() or setTargetVelocity(). for ShooterPIDTuner
+    // fixed power with no feedforward or PID, until stop() or setTargetVelocity(). for ShooterAutoTuner
     public void setOpenLoopPower(double power) {
         tracking = false;
         targetVelocity = 0;
