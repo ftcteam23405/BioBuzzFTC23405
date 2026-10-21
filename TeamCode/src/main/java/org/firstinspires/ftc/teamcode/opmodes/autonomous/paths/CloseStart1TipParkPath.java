@@ -10,14 +10,14 @@ public class CloseStart1TipParkPath {
 
     private final PoseFactory poseFactory = PoseFactory.degrees();
 
-    private final Pose startPose = poseFactory.of(56, 9, 90);
-    private final Pose shoot1End = poseFactory.of(56, 27, 90);
-    private final Pose parkPose = poseFactory.of(13.81, 93.04, 0);
+    private final Pose startPose = poseFactory.of(56, 9, 270);
+    private final Pose shoot1End = poseFactory.of(56, 27, 270);
+    private final Pose parkPose = poseFactory.of(13.81, 93.04, 270);
     private final Pose parkCtrl1 = poseFactory.of(20.02, 32.89, 0);
 
     /** New move — 18 in */
     public Path newMove() {
-        return line(startPose, shoot1End).constant(90);
+        return line(startPose, shoot1End).constant(270);
     }
 
     /** New move — 84.616 in */

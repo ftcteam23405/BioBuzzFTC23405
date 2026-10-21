@@ -37,14 +37,14 @@ public class CloseStart1TipPark extends OpMode{
         this.alliance = alliance;
 
         PoseFactory poseFactory = (alliance == Alliance.RED) ? PoseFactory.degrees() : PoseFactory.degrees().mirrorAroundPoint(71,71);
-        startPose = poseFactory.of(56, 9, 90);
-        shoot1End = poseFactory.of(56, 27, 90);
-        parkPose = poseFactory.of(13.81, 93.04, 0);
+        startPose = poseFactory.of(56, 9, 270);
+        shoot1End = poseFactory.of(56, 27, 270);
+        parkPose = poseFactory.of(13.81, 93.04, 270);
         parkCtrl1 = poseFactory.of(20.02, 32.89, 0);
     }
 
     public Path goToShoot() {
-        return line(startPose, shoot1End).constant(90);
+        return line(startPose, shoot1End).constant(270);
     }
 
     public Path park() {
