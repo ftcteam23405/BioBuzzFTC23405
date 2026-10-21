@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.commandbase.subsystems;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
+import com.pedropathing.ivy.Command;
 import com.pedropathing.ivy.CommandBuilder;
 import com.pedropathing.ivy.commands.Commands;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -31,4 +32,7 @@ public class Latch {
     }
     public CommandBuilder doOutake() { return Commands.instant(this::outtake); }
 
+    public CommandBuilder off() {
+        return Commands.instant(this::stop);
+    }
 }
