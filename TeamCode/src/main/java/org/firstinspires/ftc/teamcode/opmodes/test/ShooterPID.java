@@ -9,6 +9,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
+
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -17,19 +19,20 @@ import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 @TeleOp
 public class ShooterPID extends OpMode {
     Controller controller;
-    public static double kP = 0.05;
+    public static double kP = 0.0375;
     public static double kI = 0;
-    public static double kD = 0;
+    public static double kD = 0.02;
     double previousVelocity = 0;
     double previousTime = 0;
     public static double target = 160;
+    private VoltageSensor voltageSensor;
     Robot robot;
     DcMotorEx motor;
     @Override
     public void init() {
         controller = Controller.pid(kP,kI,kD);
         motor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
-        //motor.setDirection(DcMotorSimple.Direction.REVERSE);
+        voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
         robot = new Robot(hardwareMap, Alliance.RED);
     }
 
@@ -39,8 +42,9 @@ public class ShooterPID extends OpMode {
         double currentVelocity = motor.getVelocity(AngleUnit.DEGREES);
         double currentTime = getRuntime();
 
-        double derivative = ((currentVelocity-previousVelocity)/(currentTime-previousTime))/1000;
+        double derivative = ((currentVelocity-previousVelocity)/(currentTime-previousTime))/1000.0;
         double output = controller.calculate(target,target-currentVelocity,derivative);
+        output = output * (12/voltageSensor.getVoltage());
 
         if (gamepad1.right_bumper) {
             motor.setPower(limit(output));
