@@ -19,7 +19,7 @@ import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 @TeleOp
 public class ShooterPID extends OpMode {
     Controller controller;
-    public static double kP = 0.0375;
+    public static double kP = 0.0345;
     public static double kI = 0;
     public static double kD = 0.02;
     double previousVelocity = 0;

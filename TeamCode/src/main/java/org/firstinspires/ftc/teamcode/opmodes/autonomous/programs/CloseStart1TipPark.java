@@ -29,7 +29,6 @@ public class CloseStart1TipPark extends OpMode{
     final Alliance alliance;
 
     private final Pose startPose;
-    private final Pose shoot1End;
     private final Pose parkPose;
     private final Pose parkCtrl1;
 
@@ -38,22 +37,18 @@ public class CloseStart1TipPark extends OpMode{
 
         PoseFactory poseFactory = (alliance == Alliance.RED) ? PoseFactory.degrees() : PoseFactory.degrees().mirrorAroundPoint(71,71);
         startPose = poseFactory.of(56, 9, 270);
-        shoot1End = poseFactory.of(56, 27, 270);
-        parkPose = poseFactory.of(13.81, 93.04, 270);
+        parkPose = poseFactory.of(13.81, 93.04, 0);
         parkCtrl1 = poseFactory.of(20.02, 32.89, 0);
     }
 
-    public Path goToShoot() {
-        return line(startPose, shoot1End).constant(270);
-    }
 
     public Path park() {
-        return curve(shoot1End, parkCtrl1, parkPose).linear(shoot1End, parkPose);
+        return curve(startPose, parkCtrl1, parkPose).linear(startPose, parkPose);
     }
 
     public Command autoRoutine() {
         return sequential(
-                parallel(follow(robot.follower, goToShoot()), robot.shooter.autoPower()),
+                parallel(robot.shooter.autoPower()),
                 shootSequence(),
                 follow(robot.follower, park())
         );
@@ -62,9 +57,12 @@ public class CloseStart1TipPark extends OpMode{
     public Command shootSequence() {
         return sequential(
                 waitMs(1000),
-                parallel(robot.latch.doIntake(), robot.intake.on()),
+                parallel(robot.latch.doOutake(), robot.intake.on()),
                 waitMs(200),
-                robot.shooter.autoPower(),
+                robot.latch.off(),
+                waitMs(500),
+                parallel(robot.latch.doOutake(), robot.intake.on()),
+
                 waitMs(2000),
                 parallel(robot.shooter.off(), robot.intake.off(), robot.latch.off())
         );
@@ -85,7 +83,7 @@ public class CloseStart1TipPark extends OpMode{
     @Override
     public void loop() {
         Scheduler.execute();
-        robot.periodic();
+        robot.periodic(this);
         String drivetrainString = robot.follower.debug().drivetrain().toString();
         telemetry.addLine(drivetrainString);
         telemetry.addData("X", robot.follower.pose().x());
