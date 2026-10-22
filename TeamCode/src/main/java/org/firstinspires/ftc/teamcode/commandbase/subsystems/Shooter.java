@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 
 @Configurable
@@ -26,7 +27,6 @@ public class Shooter {
 
         shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        shooterMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         stop();
@@ -41,7 +41,7 @@ public class Shooter {
 
 
     public double getVelocity() {
-        return shooterMotor.getVelocity();
+        return shooterMotor.getVelocity(AngleUnit.DEGREES);
     }
 
     public void setTeleopPresetPower() {
