@@ -6,7 +6,6 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.ivy.CommandBuilder;
 import com.pedropathing.math.Pose;
 import com.qualcomm.hardware.lynx.LynxModule;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.DriveTrain;
@@ -51,8 +50,12 @@ public class Robot {
 
     }
 
-    public void periodic(OpMode teleop) {
-        shooter.periodic(teleop);
+    public void start() {
+        shooter.start();
+    }
+
+    public void periodic() {
+        shooter.periodic();
         follower.update();
     }
 

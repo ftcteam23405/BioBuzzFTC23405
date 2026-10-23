@@ -4,13 +4,11 @@ import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.JoinedTelemetry;
 import com.bylazar.telemetry.PanelsTelemetry;
-import com.pedropathing.controllers.Controller;
 import com.pedropathing.drivetrain.DrivePowers;
 import com.pedropathing.follower.ManualDrive;
 import com.pedropathing.ivy.Scheduler;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
@@ -23,18 +21,10 @@ import org.firstinspires.ftc.teamcode.commandbase.Robot;
 public class Teleop extends OpMode {
 
     JoinedTelemetry joinedTelemetry;
-    Controller controller;
 
     Robot robot;
     final Alliance alliance;
     public boolean hold = false;
-    public static double kP = 0.0345;
-    public static double kI = 0;
-    public static double kD = 0.02;
-    double previousVelocity = 0;
-    double previousTime = 0;
-    public static double target = 160;
-    private VoltageSensor voltageSensor;
 
     public Teleop(Alliance alliance) {
         this.alliance = alliance;
@@ -44,9 +34,6 @@ public class Teleop extends OpMode {
     public void init() { //what happens at initialization
         robot = new Robot(hardwareMap, alliance);
         robot.setPose(robot.getEnd()); //also resets the shooter's distance filter
-        controller = Controller.pid(kP,kI,kD);
-        voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
-
         joinedTelemetry = new JoinedTelemetry(PanelsTelemetry.INSTANCE.getFtcTelemetry(), telemetry);
     }
 
@@ -58,20 +45,13 @@ public class Teleop extends OpMode {
     }
 
     @Override
-    public void start() { //what happens when start is pressed
-
+    public void start() {
+        robot.start();
     }
 
     @Override
-    public void loop() { //what happens during the whole match - what runs in the background
+    public void loop() {
         Scheduler.execute();
-        double currentVelocity = robot.shooter.getVelocity();
-        double currentTime = getRuntime();
-
-        double derivative = ((currentVelocity-previousVelocity)/(currentTime-previousTime))/1000.0;
-        double output = controller.calculate(target,target-currentVelocity,derivative);
-        output = output * (12/voltageSensor.getVoltage());
-
 
         DrivePowers powers = ManualDrive.fieldCentric(
             -gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(180) : Math.toRadians(0))
@@ -82,7 +62,7 @@ public class Teleop extends OpMode {
             robot.resetHeading();
 
         if (gamepad1.rightBumperWasPressed()) {
-            robot.shooter.setPower(limit(output));
+            robot.shooter.enable();
         }
         if (gamepad1.rightBumperWasReleased()) {
             robot.shooter.stop();
@@ -110,6 +90,7 @@ public class Teleop extends OpMode {
         if (gamepad1.aWasPressed())
             robot.intake.intakeOff();
 
+        robot.periodic();
         updateTelemetry();
 
     }
@@ -118,14 +99,6 @@ public class Teleop extends OpMode {
     public void stop() { //what happens when stop button is clicked
         robot.setEnd();
         Scheduler.reset();
-    }
-    private double limit(double n) {
-        if (n>1)
-            return 1;
-        else if (n<-1)
-            return -1;
-        else
-            return n;
     }
     public void updateTelemetry() {
         joinedTelemetry.addData("LoopTime Hz", robot.getLoopTimeHz());

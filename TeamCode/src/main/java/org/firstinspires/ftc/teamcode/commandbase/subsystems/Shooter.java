@@ -1,18 +1,16 @@
 package org.firstinspires.ftc.teamcode.commandbase.subsystems;
 
-import static java.lang.Runtime.getRuntime;
-
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.controllers.Controller;
 import com.pedropathing.ivy.CommandBuilder;
 import com.pedropathing.ivy.commands.Commands;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
@@ -34,6 +32,9 @@ public class Shooter {
     double previousTime = 0;
     public static double target = 160;
     private VoltageSensor voltageSensor;
+    private final ElapsedTime timer = new ElapsedTime();
+    private boolean enabled = false;
+    private double lastOutput = 0;
 
     public Shooter(HardwareMap hardwareMap) {
         shooterMotor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
@@ -57,7 +58,24 @@ public class Shooter {
     }
 
     public void stop() {
+        enabled = false;
         setPower(0);
+    }
+
+    public void enable() {
+        enabled = true;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public double getError() {
+        return target - getVelocity();
+    }
+
+    public double getOutput() {
+        return lastOutput;
     }
 
 
@@ -86,15 +104,31 @@ public class Shooter {
         return Commands.instant(this::setAutoPresetPower);
     }
 
-    public void periodic(OpMode teleopMode){
+    public CommandBuilder on() {
+        return Commands.instant(this::enable);
+    }
+
+    public void start() {
+        timer.reset();
+        previousTime = 0;
+        previousVelocity = getVelocity();
+    }
+
+    public void periodic(){
         double currentVelocity = shooterMotor.getVelocity(AngleUnit.DEGREES);
-        double currentTime = teleopMode.getRuntime();
+        double currentTime = timer.seconds();
 
         double derivative = ((currentVelocity-previousVelocity)/(currentTime-previousTime))/1000.0;
         double output = controller.calculate(target,target-currentVelocity,derivative);
         output = output * (12/voltageSensor.getVoltage());
+        lastOutput = limit(output);
 
-        shooterMotor.setPower(limit(output));
+        //keep the previous values updating even when off so the derivative is right when it turns on
+        previousVelocity = currentVelocity;
+        previousTime = currentTime;
+
+        if (enabled)
+            shooterMotor.setPower(lastOutput);
     }
 
 

@@ -47,7 +47,7 @@ public class CloseStart1TipPark extends OpMode{
 
     public Command autoRoutine() {
         return sequential(
-                parallel(robot.shooter.autoPower()),
+                parallel(robot.shooter.on()),
                 shootSequence(),
                 follow(robot.follower, park())
         );
@@ -76,13 +76,14 @@ public class CloseStart1TipPark extends OpMode{
 
     @Override
     public void start() {
+        robot.start();
         Scheduler.schedule(autoRoutine());
     }
 
     @Override
     public void loop() {
         Scheduler.execute();
-        robot.periodic(this);
+        robot.periodic();
         String drivetrainString = robot.follower.debug().drivetrain().toString();
         telemetry.addLine(drivetrainString);
         telemetry.addData("X", robot.follower.pose().x());
