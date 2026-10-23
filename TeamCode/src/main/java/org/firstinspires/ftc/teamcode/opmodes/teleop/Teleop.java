@@ -12,7 +12,6 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
@@ -95,15 +94,15 @@ public class Teleop extends OpMode {
             robot.intake.intakeOff();
         }
         if (gamepad1.left_trigger_pressed) {
-            robot.latch.outtake();
+            robot.transfer.intake();
         }
         else {
-            robot.latch.stop();
+            robot.transfer.stop();
         }
         if (gamepad1.xWasPressed())
-            robot.latch.intake();
+            robot.transfer.outtake();
         if (gamepad1.bWasPressed())
-            robot.latch.outtake();
+            robot.transfer.intake();
 
 
         if (gamepad1.yWasPressed())

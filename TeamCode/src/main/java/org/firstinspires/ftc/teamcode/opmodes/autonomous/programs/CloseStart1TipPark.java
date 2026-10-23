@@ -4,7 +4,6 @@ import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
 
 import com.bylazar.configurables.annotations.Configurable;
-import com.pedropathing.api.Paths;
 import com.pedropathing.api.PoseFactory;
 import com.pedropathing.ivy.Command;
 import com.pedropathing.ivy.Scheduler;
@@ -57,14 +56,14 @@ public class CloseStart1TipPark extends OpMode{
     public Command shootSequence() {
         return sequential(
                 waitMs(1000),
-                parallel(robot.latch.doOutake(), robot.intake.on()),
+                parallel(robot.transfer.doOutake(), robot.intake.on()),
                 waitMs(200),
-                robot.latch.off(),
+                robot.transfer.off(),
                 waitMs(500),
-                parallel(robot.latch.doOutake(), robot.intake.on()),
+                parallel(robot.transfer.doIntake(), robot.intake.on()),
 
                 waitMs(2000),
-                parallel(robot.shooter.off(), robot.intake.off(), robot.latch.off())
+                parallel(robot.shooter.off(), robot.intake.off(), robot.transfer.off())
         );
     }
 

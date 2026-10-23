@@ -1,14 +1,10 @@
 package org.firstinspires.ftc.teamcode.opmodes.test;
 
 import com.bylazar.configurables.annotations.Configurable;
-import com.bylazar.telemetry.JoinedTelemetry;
 import com.pedropathing.controllers.Controller;
-import com.pedropathing.controllers.PIDController;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
@@ -62,12 +58,12 @@ public class ShooterPID extends OpMode {
             robot.intake.intakeOff();
         }
         if (gamepad1.left_trigger_pressed) {
-            robot.latch.outtake();
+            robot.transfer.outtake();
         }
         else if (gamepad1.x)
-            robot.latch.intake();
+            robot.transfer.intake();
         else {
-            robot.latch.stop();
+            robot.transfer.stop();
         }
         telemetry.addData("currentVelocity",currentVelocity);
         telemetry.addData("loop time",currentTime-previousTime);

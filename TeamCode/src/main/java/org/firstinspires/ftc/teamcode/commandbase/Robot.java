@@ -11,19 +11,18 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.DriveTrain;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Intake;
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Latch;
+import org.firstinspires.ftc.teamcode.commandbase.subsystems.Transfer;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 //class where all robot mechanisms and routines are handled
 // Structure: Subsystems & Commands -> Robot Class -> Teleop
 public class Robot {
     public final Intake intake;
-    public final Latch latch;
+    public final Transfer transfer;
     public final Shooter shooter;
     public final DriveTrain driveTrain;
     public final Follower follower;
@@ -37,7 +36,7 @@ public class Robot {
     public Robot(HardwareMap hardwareMap, Alliance alliance) {
         this.alliance = alliance;
         intake = new Intake(hardwareMap);
-        latch = new Latch(hardwareMap);
+        transfer = new Transfer(hardwareMap);
         shooter = new Shooter(hardwareMap);
         driveTrain = new DriveTrain(hardwareMap);
 
@@ -78,7 +77,7 @@ public class Robot {
 
     public CommandBuilder intake() {
         return sequential(
-                latch.doIntake(),
+                transfer.doIntake(),
                 intake.on()
         );
     }
