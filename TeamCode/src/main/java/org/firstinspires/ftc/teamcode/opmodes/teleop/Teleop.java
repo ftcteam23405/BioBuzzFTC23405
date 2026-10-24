@@ -56,7 +56,7 @@ public class Teleop extends OpMode {
         Scheduler.execute();
 
         DrivePowers powers = ManualDrive.fieldCentric(
-            -gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(180) : Math.toRadians(0))
+            -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(180) : Math.toRadians(0))
         );
 
         robot.follower.manual(powers);
@@ -73,13 +73,13 @@ public class Teleop extends OpMode {
             robot.intake.intakeOn();
         }
         else{
-            //robot.intake.intakeOff();
+            robot.intake.intakeOff();
         }
         if (gamepad1.left_trigger_pressed) {
             robot.transfer.intake();
         }
         else {
-            //robot.transfer.stop();
+            robot.transfer.stop();
         }
         if (gamepad1.xWasPressed())
             robot.intake.off();
@@ -114,10 +114,7 @@ public class Teleop extends OpMode {
         joinedTelemetry.addData("Intake", robot.intake.getCurrent());
         joinedTelemetry.addData("Shooter", robot.shooter.getCurrent());
         joinedTelemetry.addData("Drivetrain", robot.driveTrain.getCurrent());
-        joinedTelemetry.addData("FL", robot.driveTrain.fl.getCurrent(CurrentUnit.MILLIAMPS));
-        joinedTelemetry.addData("FR", robot.driveTrain.fr.getCurrent(CurrentUnit.MILLIAMPS));
-        joinedTelemetry.addData("BL", robot.driveTrain.bl.getCurrent(CurrentUnit.MILLIAMPS));
-        joinedTelemetry.addData("BR", robot.driveTrain.br.getCurrent(CurrentUnit.MILLIAMPS));
+        joinedTelemetry.addData("speed",robot.shooter.getVelocity());
 
         for (LynxModule hub : robot.hubs) {
             joinedTelemetry.addData(hub.getDeviceName(), hub.getCurrent(CurrentUnit.MILLIAMPS)+", "+hub.getInputVoltage(VoltageUnit.MILLIVOLTS));

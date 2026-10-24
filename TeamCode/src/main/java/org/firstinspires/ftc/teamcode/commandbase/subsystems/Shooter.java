@@ -25,12 +25,13 @@ public class Shooter {
     public static double teleopPower = 0.425;
     public static double autoPower = 0.425;
     Controller controller;
-    public static double kP = 0.34;
+    public static double kF = 0.003;
+    public static double kP = 3;
     public static double kI = 0;
-    public static double kD = 0.02;
+    public static double kD = 0.1;
     double previousVelocity = 0;
     double previousTime = 0;
-    public static double target = 160;
+    public static double target = 145;
     private VoltageSensor voltageSensor;
     private final ElapsedTime timer = new ElapsedTime();
     private boolean enabled = false;
@@ -115,11 +116,12 @@ public class Shooter {
     }
     public void periodic(){
         double currentVelocity = shooterMotor.getVelocity(AngleUnit.DEGREES);
-        double currentTime = timer.seconds();
+        double currentTime = timer.milliseconds()/1000.0;
 
         double derivative = ((currentVelocity-previousVelocity)/(currentTime-previousTime))/1000.0;
-        double output = controller.calculate(target,target-currentVelocity,derivative);
-        output = output * (12/voltageSensor.getVoltage());
+        double error = (target-currentVelocity) / target;
+        double output = kF*target + kP * error + kD * derivative;
+        output = output * (12.0/voltageSensor.getVoltage());
         lastOutput = limit(output);
 
         //keep the previous values updating even when off so the derivative is right when it turns on

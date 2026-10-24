@@ -18,10 +18,10 @@ import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 @Configurable
 @TeleOp
 public class ShooterPID extends OpMode {
-    Controller controller;
-    public static double kP = 0.36;
+    public static double kF = 0.003;
+    public static double kP = 3;
     public static double kI = 0;
-    public static double kD = 0.001;
+    public static double kD = 0.1;
     double previousVelocity = 0;
     double previousTime = 0;
     public static double target = 145;
@@ -30,7 +30,6 @@ public class ShooterPID extends OpMode {
     DcMotorEx motor;
     @Override
     public void init() {
-        controller = Controller.pid(kP,kI,kD);
         motor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
         robot = new Robot(hardwareMap, Alliance.RED);
@@ -43,8 +42,9 @@ public class ShooterPID extends OpMode {
         double currentTime = getRuntime();
 
         double derivative = ((currentVelocity-previousVelocity)/(currentTime-previousTime))/1000.0;
-        double output = controller.calculate(target,target-currentVelocity,derivative);
-        output = output * (12/voltageSensor.getVoltage());
+        double error = (target-currentVelocity) / target;
+        double output = kF*target + kP * error + kD * derivative;
+        output = output * (12.0/voltageSensor.getVoltage());
 
         if (gamepad1.right_bumper) {
             motor.setPower(limit(output));
@@ -62,10 +62,10 @@ public class ShooterPID extends OpMode {
             robot.intake.intakeOff();
         }
         if (gamepad1.left_trigger_pressed) {
-            robot.transfer.outtake();
+            robot.transfer.intake();
         }
         else if (gamepad1.x)
-            robot.transfer.intake();
+            robot.transfer.outtake();
         else {
             robot.transfer.stop();
         }
