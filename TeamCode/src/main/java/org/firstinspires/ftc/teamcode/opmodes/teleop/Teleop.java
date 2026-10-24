@@ -61,41 +61,38 @@ public class Teleop extends OpMode {
         ManualDrive.driveOrHold(robot.follower, powers);
 
         robot.follower.manual(powers);
-        if (gamepad1.startWasPressed())
+        if (gamepad1.startWasPressed()) {
             robot.resetHeading();
-
-        if (gamepad1.rightBumperWasPressed()) {
-            robot.shooter.enable();
+            gamepad1.rumble(500);
         }
-        if (gamepad1.rightBumperWasReleased()) {
+
+        if(gamepad1.leftBumperWasPressed() || gamepad2.rightTriggerWasReleased()) {
             robot.shooter.stop();
         }
-        if (gamepad1.right_trigger > 0.5) {
+        if (gamepad1.rightBumperWasPressed() || gamepad2.rightTriggerWasPressed()) {
+            robot.shooter.enable();
+        }
+
+        if (gamepad1.right_trigger_pressed || gamepad2.left_trigger_pressed) {
             robot.intake.intakeOn();
+        }
+        else if (gamepad2.b) {
+            robot.intake.intakeReverse();
         }
         else{
             robot.intake.intakeOff();
         }
-        if (gamepad1.left_trigger_pressed) {
+
+
+        if (gamepad1.left_trigger_pressed || gamepad2.right_bumper) {
             robot.transfer.intake();
+        }
+        else if (gamepad2.left_bumper) {
+            robot.transfer.outtake();
         }
         else {
             robot.transfer.stop();
         }
-        if (gamepad1.xWasPressed())
-            robot.intake.off();
-        if (gamepad1.bWasPressed())
-            robot.transfer.stop();
-
-
-
-        if (gamepad1.yWasPressed())
-            robot.intake.intakeOn();
-        if (gamepad1.aWasPressed()){
-            Scheduler.schedule(robot.shooterSeq());
-
-        }
-
         robot.periodic();
         updateTelemetry();
 

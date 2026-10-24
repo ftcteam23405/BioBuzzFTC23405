@@ -26,9 +26,9 @@ public class Shooter {
     public static double autoPower = 0.425;
     Controller controller;
     public static double kF = 0.003;
-    public static double kP = 3;
+    public static double kP = 4;
     public static double kI = 0;
-    public static double kD = 0.1;
+    public static double kD = 0.05;
     double previousVelocity = 0;
     double previousTime = 0;
     public static double target = 145;
@@ -42,7 +42,7 @@ public class Shooter {
 
         shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         controller = Controller.pid(kP,kI,kD);
 
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");

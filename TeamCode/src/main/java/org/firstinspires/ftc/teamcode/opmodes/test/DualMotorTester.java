@@ -24,9 +24,9 @@ public class DualMotorTester extends LinearOpMode {
 
         while(opModeIsActive()){
             speed = -gamepad1.left_stick_y;
-
+            double speed1 = -gamepad1.right_stick_y;
             motor.setPower(speed);
-            motor2.setPower(speed);
+            motor2.setPower(speed1);
 
             telemetry.addData("Motor Power", motor.getPower());
             telemetry.addData("Motor 2 Power", motor2.getPower());
