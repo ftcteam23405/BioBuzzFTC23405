@@ -25,7 +25,7 @@ public class Shooter {
     public static double teleopPower = 0.425;
     public static double autoPower = 0.425;
     Controller controller;
-    public static double kP = 0.0345;
+    public static double kP = 0.34;
     public static double kI = 0;
     public static double kD = 0.02;
     double previousVelocity = 0;
@@ -77,7 +77,7 @@ public class Shooter {
     public double getOutput() {
         return lastOutput;
     }
-
+    
 
 
     public double getVelocity() {
@@ -113,7 +113,6 @@ public class Shooter {
         previousTime = 0;
         previousVelocity = getVelocity();
     }
-
     public void periodic(){
         double currentVelocity = shooterMotor.getVelocity(AngleUnit.DEGREES);
         double currentTime = timer.seconds();

@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.opmodes.teleop;
 
+import static com.pedropathing.ivy.commands.Commands.waitMs;
+
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.JoinedTelemetry;
@@ -71,24 +73,28 @@ public class Teleop extends OpMode {
             robot.intake.intakeOn();
         }
         else{
-            robot.intake.intakeOff();
+            //robot.intake.intakeOff();
         }
         if (gamepad1.left_trigger_pressed) {
             robot.transfer.intake();
         }
         else {
-            robot.transfer.stop();
+            //robot.transfer.stop();
         }
         if (gamepad1.xWasPressed())
-            robot.transfer.outtake();
+            robot.intake.off();
         if (gamepad1.bWasPressed())
-            robot.transfer.intake();
+            robot.transfer.stop();
+
 
 
         if (gamepad1.yWasPressed())
             robot.intake.intakeOn();
-        if (gamepad1.aWasPressed())
-            robot.intake.intakeOff();
+        if (gamepad1.aWasPressed()){
+            Scheduler.schedule(robot.shooterSeq());
+
+        }
+
 
         robot.periodic();
         updateTelemetry();
