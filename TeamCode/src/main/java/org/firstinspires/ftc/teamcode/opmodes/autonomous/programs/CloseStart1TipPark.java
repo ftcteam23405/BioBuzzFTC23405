@@ -36,7 +36,7 @@ public class CloseStart1TipPark extends OpMode{
 
         PoseFactory poseFactory = (alliance == Alliance.RED) ? PoseFactory.degrees() : PoseFactory.degrees().mirrorAroundPoint(71,71);
         startPose = poseFactory.of(56, 9, 270);
-        parkPose = poseFactory.of(13.81, 93.04, 0);
+        parkPose = poseFactory.of(15, 85, 0);
         parkCtrl1 = poseFactory.of(20.02, 32.89, 0);
     }
 
@@ -62,7 +62,7 @@ public class CloseStart1TipPark extends OpMode{
                 waitMs(500),
                 parallel(robot.transfer.doIntake(), robot.intake.on()),
 
-                waitMs(2000),
+                waitMs(10000),
                 parallel(robot.shooter.off(), robot.intake.off(), robot.transfer.off())
         );
     }

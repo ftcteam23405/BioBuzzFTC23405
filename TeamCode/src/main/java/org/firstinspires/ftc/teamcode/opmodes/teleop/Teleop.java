@@ -90,6 +90,9 @@ public class Teleop extends OpMode {
         else if (gamepad2.left_bumper) {
             robot.transfer.outtake();
         }
+        else if (gamepad2.a) {
+            robot.transfer.intakeSlow();
+        }
         else {
             robot.transfer.stop();
         }

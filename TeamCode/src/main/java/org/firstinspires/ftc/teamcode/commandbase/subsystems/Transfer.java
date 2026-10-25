@@ -22,7 +22,8 @@ public class Transfer {
         servo.setDirection(DcMotorSimple.Direction.REVERSE);
     }
 
-    public void intake(){servo.setPower(1);}
+    public void intake(){servo.setPower(0.75);}
+    public void intakeSlow(){servo.setPower(0.25);}
     public void outtake(){servo.setPower(-1);}
     public void stop(){servo.setPower(0);}
 
