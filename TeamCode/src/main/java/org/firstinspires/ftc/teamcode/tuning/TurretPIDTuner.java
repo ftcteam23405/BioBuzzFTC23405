@@ -15,29 +15,25 @@ import java.util.Locale;
 
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 
-
-
-// under Turret and they take effect on the next loop. graph Target and Angle to see the step response
-
+// Steps the turret between two absolute positions (ticks) and scores each step. Gains live under Turret in
+// Panels/Dashboard and apply next loop. Graph Target and Position. ~56.9 ticks per turret deg at 5:1.
 // a = start/stop stepping   b = motor off   x = hold targetA   y = hold targetB
-// during init: back = zero the encoder (the turret's encoder is relative, point the shooter straight forward first)
-
-// how to tune, in order (run TurretTester first so the encoder and directions are right):
-// 1. everything 0 but kP. raise kP until it gets to the target quickly and overshoots a little
-// 2. raise kD until the overshoot is gone. too much kD and it buzzes / chatters near the target
-// 3. kS: if it stops short of small steps (try stepSize 6), raise kS until it just makes it. too much and it
-//    hunts back and forth around the target
-// 4. kI only if there's still steady state error after kS, and keep it small. iZone keeps it from winding up
-// 5. try a big step (stepSize 240) to check it doesn't slam into a hard stop, lower maxPower if it does
-// all in ticks (~2 ticks per deg). good is SETTLE under about 0.3 s for a 90 tick step, OVERSHOOT under 2-4 ticks,
-// STEADY ERROR inside tolerance
+// init: back = resync (point the shooter forward first)
+//
+// HOW TO TUNE (run TurretTester first so the encoder is set up):
+// 1. Set kD, kS, kV to 0. Raise kP until it reaches the target fast with a little overshoot.
+// 2. Raise kD until the overshoot is gone. Too much kD makes it buzz near the target.
+// 3. Set stepSize to 228 (~4 deg). Raise kS until small steps just reach the target. Too much and it hunts.
+// 4. Set stepSize to 6827 (~120 deg) and check it doesn't slam. Lower maxPower if it does.
+// Goal: SETTLE < 0.3 s on a 2560 tick (45 deg) step, OVERSHOOT < ~100 ticks, STEADY ERROR inside tolerance.
+// Copy the final gains into Turret.java.
 @Configurable
 @Config
 @TeleOp
 public class TurretPIDTuner extends OpMode {
-    public static double center = 0;      // ticks, steps are center +/- stepSize / 2
-    public static double stepSize = 90;   // ticks, ~45 deg
-    public static double holdTime = 1.5;  // seconds at each target before stepping again
+    public static double center = 0;       // ticks
+    public static double stepSize = 2560;  // ticks, ~45 deg
+    public static double holdTime = 1.5;  // s
 
     private Turret turret;
     private JoinedTelemetry joinedTelemetry;
@@ -46,10 +42,9 @@ public class TurretPIDTuner extends OpMode {
     private boolean atA = true;
     private final ElapsedTime stepTimer = new ElapsedTime();
 
-    // scored on every step
     private double stepStart = 0, stepTarget = 0;
     private double maxOvershoot = 0;
-    private double settleTime = -1;      // first time it got inside tolerance and stayed there, -1 = not yet
+    private double settleTime = -1;
     private double lastSettle = -1, lastOvershoot = 0, lastSteadyError = 0;
 
     @Override
@@ -66,12 +61,12 @@ public class TurretPIDTuner extends OpMode {
 
     @Override
     public void init_loop() {
-        if (gamepad1.backWasPressed()) turret.resetPosition();
+        if (gamepad1.backWasPressed()) turret.resync();
 
         turret.periodic();
         joinedTelemetry.addData("Position", turret.getPosition());
-        joinedTelemetry.addLine("back to zero it here if the shooter is facing forward and Position isn't 0");
-        joinedTelemetry.addLine("a to start stepping between " + targetA() + " and " + targetB());
+        joinedTelemetry.addLine("back to resync if the shooter faces forward and Position isn't ~0");
+        joinedTelemetry.addLine("a to start stepping between " + targetA() + " and " + targetB() + " ticks");
         joinedTelemetry.update();
     }
 
@@ -99,27 +94,26 @@ public class TurretPIDTuner extends OpMode {
         turret.periodic();
         score();
 
-        // numbers first so they graph
         joinedTelemetry.addData("Target", turret.getTarget());
         joinedTelemetry.addData("Position", turret.getPosition());
         joinedTelemetry.addData("Error", turret.getError());
         joinedTelemetry.addData("Power", turret.getPower());
         joinedTelemetry.addData("Velocity", turret.getVelocity());
+        joinedTelemetry.addData("Angle (deg)", turret.getAngle());
         joinedTelemetry.addLine();
 
         joinedTelemetry.addData("Mode", !turret.isEnabled() ? "OFF" : stepping ? "STEPPING (a to stop)" : "HOLDING");
-        joinedTelemetry.addData("Gains", String.format(Locale.US, "kP %.4f  kI %.4f  kD %.5f  kS %.3f  max %.2f",
-                Turret.kP, Turret.kI, Turret.kD, Turret.kS, Turret.maxPower));
+        joinedTelemetry.addData("Gains", String.format(Locale.US, "kP %.6f  kD %.7f  kS %.3f  max %.2f",
+                Turret.kP, Turret.kD, Turret.kS, Turret.maxPower));
         joinedTelemetry.addLine();
         joinedTelemetry.addLine("--- last step ---");
         joinedTelemetry.addData("SETTLE", lastSettle < 0 ? "never got inside tolerance" : String.format(Locale.US, "%.2f s", lastSettle));
-        joinedTelemetry.addData("OVERSHOOT", String.format(Locale.US, "%.1f ticks", lastOvershoot));
-        joinedTelemetry.addData("STEADY ERROR", String.format(Locale.US, "%.1f ticks  (tolerance %.1f)", lastSteadyError, Turret.tolerance));
+        joinedTelemetry.addData("OVERSHOOT", String.format(Locale.US, "%.0f ticks  (%.2f deg)", lastOvershoot, Turret.ticksToDegrees(lastOvershoot)));
+        joinedTelemetry.addData("STEADY ERROR", String.format(Locale.US, "%.0f ticks  (tolerance %.0f)", lastSteadyError, Turret.tolerance));
         joinedTelemetry.update();
     }
 
     private void step(boolean toA) {
-        // finish scoring the step we're leaving
         if (turret.isEnabled()) {
             lastSettle = settleTime;
             lastOvershoot = maxOvershoot;
@@ -138,14 +132,13 @@ public class TurretPIDTuner extends OpMode {
     private void score() {
         if (!turret.isEnabled()) return;
 
-        // overshoot = how far it went past the target, in the direction it was moving
         double direction = Math.signum(stepTarget - stepStart);
         double past = (turret.getPosition() - stepTarget) * direction;
         maxOvershoot = Math.max(maxOvershoot, past);
 
         boolean inside = Math.abs(turret.getError()) < Turret.tolerance;
         if (inside && settleTime < 0) settleTime = stepTimer.seconds();
-        if (!inside) settleTime = -1; // left the band again, it hasn't settled yet
+        if (!inside) settleTime = -1;
     }
 
     private double targetA() {

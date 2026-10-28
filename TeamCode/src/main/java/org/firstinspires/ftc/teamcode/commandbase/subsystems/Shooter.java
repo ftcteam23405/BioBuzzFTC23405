@@ -25,7 +25,7 @@ public class Shooter {
     // tune with ShooterAutoTuner: press a and it finds all three, then paste the lines it prints here
     public static double kS = 0.08;      // power to overcome friction
     public static double kV = 0.00039;   // power per tick/s
-    public static double kP = 0.01;      // power per tick/s of error
+    public static double kP = 0.01;
     public static double tolerance = 50; // ticks/s
 
 
@@ -34,17 +34,15 @@ public class Shooter {
     public static double audienceGoalY = 52;
     public static double farGoalY = 90;
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
-                                               // so the turret doesn't flip-flop on the line halfway between them
 
-    // pedro + limelight are combined in GoalDistanceFilter, tune it with GoalDistanceFilterTuner
 
     // straight-line distance to the closest goal (inches) -> flywheel velocity (ticks/s)
-    // placeholder values, fill these in with ShooterTuner. distances must be increasing
+    // placeholder values, distances must be increasing
     private static final double[] DISTANCES = {40, 60, 80, 100, 120};
     private static final double[] VELOCITIES = {1200, 1250, 1300, 1350, 1400};
     private static final Interpolation velocityTable = new LinearInterpolation(DISTANCES, VELOCITIES);
 
-    private final DcMotorEx topMotor, bottomMotor;
+    private final DcMotorEx shooterMotor;
 
     private double targetVelocity = 0;
     private boolean tracking = false; // true = velocity follows distance to the goal every loop
@@ -60,15 +58,12 @@ public class Shooter {
     private double limelightDistance = Double.NaN;
 
     public Shooter(HardwareMap hardwareMap) {
-        topMotor = hardwareMap.get(DcMotorEx.class, "sTop");
-        bottomMotor = hardwareMap.get(DcMotorEx.class, "sBottom");
+        shooterMotor = hardwareMap.get(DcMotorEx.class, "shooter");
 
-        topMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        topMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        bottomMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        topMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        bottomMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        shooterMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         stop();
     }
@@ -87,9 +82,7 @@ public class Shooter {
         openLoopPower = Range.clip(power, 0, 1);
     }
 
-    // velocity follows the distance to the goal until stop() or setTargetVelocity()
-    // the filter isn't reset here: it still has the last pedro pose, so it picks up where it left off
-    // and keeps the drift correction it learned from the limelight
+    // keeps the drift correction it learned from the limelight
     public void startTracking() {
         tracking = true;
         openLoopPower = Double.NaN;
@@ -109,7 +102,7 @@ public class Shooter {
     }
 
     public double getVelocity() {
-        return topMotor.getVelocity();
+        return shooterMotor.getVelocity();
     }
 
     public boolean atTarget() {
@@ -130,14 +123,13 @@ public class Shooter {
         double feedforward = kS + kV * targetVelocity;
         double feedback = kP * (targetVelocity - getVelocity());
 
-        // don't reverse the flywheel to slow it down, just let it coast
+        // let flywheel coast
         setPower(Range.clip(feedforward + feedback, 0, 1));
     }
 
     private void setPower(double power) {
         this.power = power;
-        topMotor.setPower(power);
-        bottomMotor.setPower(power);
+        shooterMotor.setPower(power);
     }
 
     public double getPower() {
@@ -146,15 +138,11 @@ public class Shooter {
 
 
     // sets the target velocity from how far we are from the goal, using odometry + limelight
-    // robot: follower pose
-    // limelightDistance: from Limelight.freshDistanceToGoal(), which is NaN unless the limelight gave us a
-    // frame we haven't used yet. don't pass distanceToGoal() here, that reading repeats between frames and
-    // the filter would blend the same number in over and over
+    // don't pass distanceToGoal() here
     public void setVelocityFromDistance(Pose robot, Alliance alliance, double limelightDistance) {
         setVelocityFromDistance(robot, closestGoal(robot, alliance), limelightDistance);
     }
 
-    // same, at a goal that's already been picked (Robot picks it once per loop for the shooter and turret)
     // limelightDistance must come from that goal's tags, see Limelight.freshDistanceToGoal(int[])
     public void setVelocityFromDistance(Pose robot, Pose goal, double limelightDistance) {
         odometryDistance = robot.distance(goal);

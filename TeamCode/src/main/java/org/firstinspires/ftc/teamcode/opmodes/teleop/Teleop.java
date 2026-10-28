@@ -100,8 +100,8 @@ public class Teleop extends OpMode {
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
         joinedTelemetry.addLine();
 
-        joinedTelemetry.addData("Turret Position (ticks)", robot.turret.getPosition());
-        joinedTelemetry.addData("Turret Target (ticks)", robot.turret.getTarget());
+        joinedTelemetry.addData("Turret Position (deg)", robot.turret.getAngle());
+        joinedTelemetry.addData("Turret Target (deg)", robot.turret.getTargetDegrees());
         joinedTelemetry.addData("Turret On Goal", robot.turret.atTarget());
         joinedTelemetry.addLine();
 
