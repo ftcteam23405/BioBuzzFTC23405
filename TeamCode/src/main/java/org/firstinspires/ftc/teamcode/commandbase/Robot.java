@@ -104,6 +104,10 @@ public class Robot {
         // same deal for the turret: pedro turns it with the robot every loop, a new tag frame's tx corrects it
         turret.aim(pose, goal, limelight.freshAngle(goalTags));
         turret.periodic();
+
+        for (LynxModule hub : hubs) {
+            hub.clearBulkCache();
+        }
     }
 
     public void setEnd() { //use at end of all autos
