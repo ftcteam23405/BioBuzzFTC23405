@@ -22,7 +22,7 @@ public class Intake {
     private final DigitalChannel laser;
 
     public Intake(HardwareMap hardwareMap){
-        intakeMotor = hardwareMap.get(DcMotorEx.class, "intakeMotor");
+        intakeMotor = hardwareMap.get(DcMotorEx.class, "intake");
         intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         laser = hardwareMap.get(DigitalChannel.class, "laser");

@@ -22,6 +22,8 @@ public class Teleop extends OpMode {
     Robot robot;
     final Alliance alliance;
 
+    public static double shooterVelocity = 1300; // ticks/s while right bumper is held, change it live in panels
+
     public boolean hold = false;
     public double speed = 1;
 
@@ -66,11 +68,18 @@ public class Teleop extends OpMode {
         if (gamepad1.startWasPressed())
             robot.resetHeading();
 
+        // aWasPressed() clears itself when read, so only read it once per loop
+        boolean aPressed = gamepad1.aWasPressed();
 
+        // set every loop so changing shooterVelocity in panels takes effect while holding
+        if (gamepad1.right_bumper)
+            robot.shooter.setTargetVelocity(shooterVelocity);
+        else if (gamepad1.rightBumperWasReleased())
+            robot.shooter.stop();
 
         if (gamepad1.xWasPressed())
             robot.latch.toOpenPos();
-        if (gamepad1.aWasPressed())
+        if (aPressed)
             robot.latch.toClosePos();
 
 
@@ -81,7 +90,7 @@ public class Teleop extends OpMode {
 
         if (gamepad1.yWasPressed())
             robot.intake.intakeOn();
-        if (gamepad1.aWasPressed())
+        if (aPressed)
             robot.intake.intakeOff();
 
         updateTelemetry();
@@ -103,6 +112,11 @@ public class Teleop extends OpMode {
         joinedTelemetry.addData("Turret Position (deg)", robot.turret.getAngle());
         joinedTelemetry.addData("Turret Target (deg)", robot.turret.getTargetDegrees());
         joinedTelemetry.addData("Turret On Goal", robot.turret.atTarget());
+        joinedTelemetry.addLine();
+
+        joinedTelemetry.addData("Shooter Target (ticks/s)", robot.shooter.getTargetVelocity());
+        joinedTelemetry.addData("Shooter Velocity (ticks/s)", robot.shooter.getVelocity());
+        joinedTelemetry.addData("Shooter At Target", robot.shooter.atTarget());
         joinedTelemetry.addLine();
 
         joinedTelemetry.addData("Latch Closed", robot.latch.isOpen());

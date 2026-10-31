@@ -27,7 +27,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 
 // a = full auto tune   dpad up = feedforward only (kS, kV)   dpad right = kP only (keeps the current kS, kV)
 // x = hold testVelocity with the current gains   b = stop / abort (abort puts the old gains back)
-// graph Target, Velocity and Power in panels / dashboard to watch it work
+// graph Target, Velocity, Power and RPM in panels / dashboard to watch it work
 
 // what it does:
 // 1. feedforward sweep: runs fixed powers with no PID, waits for the flywheel to settle at each one and fits a line
@@ -45,6 +45,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 @TeleOp
 public class ShooterAutoTuner extends OpMode {
     public static double testVelocity = 1300; // ticks/s the kP search and hold run at, use a typical shot speed
+    public static double ticksPerRev = 28;    // flywheel motor encoder, for the rpm readout
 
     // feedforward sweep
     public static double sweepStartPower = 0.2;
@@ -62,7 +63,7 @@ public class ShooterAutoTuner extends OpMode {
 
     private static final double STEADY_WINDOW = 0.4;  // s, two windows in a row averaging the same speed = steady
     private static final double SETTLE_CONFIRM = 0.3; // s it has to stay inside tolerance to count as settled
-    private static final double KICK_MAX_TIME = 0.6;  // s, longest the power is cut for a fake shot
+    private static final double KICK_MAX_TIME = 1.0;  // s, longest the power is cut for a fake shot
     private static final double COAST_VELOCITY = 30;  // ticks/s, slower than this counts as stopped
     private static final double COAST_TIMEOUT = 15;
     private static final double LOW_BATTERY = 12.5;
@@ -74,6 +75,7 @@ public class ShooterAutoTuner extends OpMode {
         double kP;
         double steadyError, noise; // mean and std dev of the error while holding, ticks/s
         double clipped;            // fraction of the hold with power stuck at 0 or 1
+        double power;              // mean motor power while holding
         double dip, overshoot;     // ticks/s, from the fake shot
         double recovery = Double.NaN; // s from releasing the fake shot to back inside tolerance, NaN = never
         boolean ok;
@@ -108,7 +110,7 @@ public class ShooterAutoTuner extends OpMode {
     private KPTest picked;
     private double quietestNoise;
     private double insideSince = -1;
-    private double errorSum, errorSquareSum;
+    private double errorSum, errorSquareSum, powerSum;
     private int measureCount, clipCount;
     private double kickStart;
 
@@ -423,6 +425,7 @@ public class ShooterAutoTuner extends OpMode {
         if (!updateInside(t, velocity) && t < timeout()) return;
         errorSum = 0;
         errorSquareSum = 0;
+        powerSum = 0;
         measureCount = 0;
         clipCount = 0;
         enter(Stage.KP_MEASURE);
@@ -432,6 +435,7 @@ public class ShooterAutoTuner extends OpMode {
         double error = testVelocity - velocity;
         errorSum += error;
         errorSquareSum += error * error;
+        powerSum += shooter.getPower();
         measureCount++;
         if (shooter.getPower() <= 0 || shooter.getPower() >= 1) clipCount++;
         if (t < measureTime) return;
@@ -439,6 +443,7 @@ public class ShooterAutoTuner extends OpMode {
         current.steadyError = errorSum / measureCount;
         current.noise = Math.sqrt(Math.max(0, errorSquareSum / measureCount - current.steadyError * current.steadyError));
         current.clipped = (double) clipCount / measureCount;
+        current.power = powerSum / measureCount;
 
         // fake shot: cut the power and let it coast down
         kickStart = velocity;
@@ -569,6 +574,8 @@ public class ShooterAutoTuner extends OpMode {
         joinedTelemetry.addData("Velocity", velocity);
         joinedTelemetry.addData("Error", shooter.getTargetVelocity() - velocity);
         joinedTelemetry.addData("Power", shooter.getPower());
+        joinedTelemetry.addData("Target RPM", Globals.calculateRPM(shooter.getTargetVelocity(), ticksPerRev));
+        joinedTelemetry.addData("RPM", Globals.calculateRPM(velocity, ticksPerRev));
         joinedTelemetry.addLine();
 
         joinedTelemetry.addData("Stage", describeStage());
@@ -598,19 +605,22 @@ public class ShooterAutoTuner extends OpMode {
         }
 
         if (!kPTestResults.isEmpty()) {
-            joinedTelemetry.addLine("--- kP tests: kP | recovery | overshoot | noise | steady error ---");
+            joinedTelemetry.addLine("--- kP tests: kP | recovery | overshoot | noise | steady error | rpm | power ---");
             for (KPTest r : kPTestResults) {
-                joinedTelemetry.addLine(String.format(Locale.US, "%.6f | %s | %.0f | %.0f | %.0f  %s%s",
+                joinedTelemetry.addLine(String.format(Locale.US, "%.6f | %s | %.0f | %.0f | %.0f | %.0f | %.3f  %s%s",
                         r.kP, Double.isNaN(r.recovery) ? "-" : String.format(Locale.US, "%.2f s", r.recovery),
-                        r.overshoot, r.noise, r.steadyError, r.verdict, r == picked ? "  <- PICKED" : ""));
+                        r.overshoot, r.noise, r.steadyError,
+                        Globals.calculateRPM(testVelocity - r.steadyError, ticksPerRev), r.power,
+                        r.verdict, r == picked ? "  <- PICKED" : ""));
             }
             joinedTelemetry.addLine();
         }
 
         if (!sweepPoints.isEmpty()) {
-            joinedTelemetry.addLine("--- feedforward sweep: power -> ticks/s ---");
+            joinedTelemetry.addLine("--- feedforward sweep: power -> ticks/s (rpm) ---");
             for (double[] p : sweepPoints)
-                joinedTelemetry.addLine(String.format(Locale.US, "%.2f -> %.0f", p[1], p[0]));
+                joinedTelemetry.addLine(String.format(Locale.US, "%.2f -> %.0f (%.0f rpm)", p[1], p[0],
+                        Globals.calculateRPM(p[0], ticksPerRev)));
             if (!Double.isNaN(fitKV))
                 joinedTelemetry.addLine(String.format(Locale.US, "kS %.4f  kV %.7f  fit error %.3f power",
                         fitKS, fitKV, fitError));

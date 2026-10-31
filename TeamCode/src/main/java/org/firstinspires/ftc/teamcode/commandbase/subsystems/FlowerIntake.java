@@ -10,8 +10,10 @@ public class FlowerIntake {
 
     public final Servo rightFlowerServo, leftFlowerServo;
 
-    public static double upPos = 0.5;
-    public static double downPos = 0.5;
+    public static double upPos = 0.67;
+
+    public static double middlePos = 0.5;
+    public static double downPos = 0.22;
 
     public FlowerIntake(HardwareMap hardwareMap) {
         rightFlowerServo = hardwareMap.get(Servo.class, "rightFlowerServo");

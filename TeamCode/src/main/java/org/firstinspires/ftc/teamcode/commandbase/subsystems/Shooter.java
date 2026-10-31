@@ -23,9 +23,9 @@ public class Shooter {
 
 
     // tune with ShooterAutoTuner: press a and it finds all three, then paste the lines it prints here
-    public static double kS = 0.08;      // power to overcome friction
-    public static double kV = 0.00039;   // power per tick/s
-    public static double kP = 0.01;
+    public static double kS = 0.1525;      // power to overcome friction
+    public static double kV = 0.0005261;   // power per tick/s
+    public static double kP = 0.002021;
     public static double tolerance = 50; // ticks/s
 
 

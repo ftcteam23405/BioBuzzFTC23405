@@ -12,9 +12,9 @@ import com.qualcomm.robotcore.hardware.Servo;
 @Config
 public class Latch {
     private Servo latchServo;
-    public static double closePos = 0.52;
+    public static double closePos = 0.6;
     public static double intakePos = 0.3;
-    public static double openPos = 0.2;
+    public static double openPos = 0.4;
 
     public Latch(HardwareMap hardwareMap){
         latchServo = hardwareMap.get(Servo.class, "latch");
