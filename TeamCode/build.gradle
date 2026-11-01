@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        google()
+        maven { url "https://repo.dairy.foundation/releases" }
+    }
+    dependencies {
+        classpath "dev.frozenmilk:Load:0.3.2"
+    }
+}
+
 apply plugin: 'com.android.application'
 
 //
@@ -15,6 +26,9 @@ apply plugin: 'com.android.application'
 // Include common definitions from above.
 apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
+
+// Sloth fast deploy: run the deploySloth task instead of a full install
+apply plugin: 'dev.frozenmilk.sinister.sloth.load'
 
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
@@ -39,19 +53,24 @@ repositories {
     }
 }
 
+
+// Sloth needs its own builds of Dashboard and Panels; keep the stock ones from sneaking in transitively
+configurations.configureEach {
+    exclude group: 'com.acmerobotics.dashboard'
+    exclude group: 'com.bylazar'
+}
+
 dependencies {
     implementation project(':FtcRobotController')
 
     implementation 'org.ftclib.ftclib:core:2.1.1'
     implementation 'org.ftclib.ftclib:vision:2.1.0'
-    implementation "com.acmerobotics.dashboard:dashboard:0.4.16"
-    implementation 'com.bylazar:fullpanels:1.0.19'
     implementation 'com.pedropathing.ivy:pedro:1.1.1'
     implementation 'com.pedropathing:revhub:3.0.2'
-    implementation 'com.pedropathing:tuning:1.0.1'
-    implementation 'dev.nextftc.v2:control:0.2.1'
-    implementation 'dev.nextftc.v2:hardware:0.2.1'
-
+    implementation 'com.pedropathing:tuning:1.0.3'
+    implementation 'dev.frozenmilk.sinister:Sloth:0.3.2'
+    implementation 'com.acmerobotics.slothboard:dashboard:0.3.2+0.6.0'
+    implementation 'com.bylazar.sloth:fullpanels:0.3.2+1.0.13'
     implementation('com.github.haifengl:smile-interpolation:2.6.0') {
         exclude group: 'org.slf4j'
     }
