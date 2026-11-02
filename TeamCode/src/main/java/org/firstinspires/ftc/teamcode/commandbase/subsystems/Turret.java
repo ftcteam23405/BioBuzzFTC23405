@@ -28,7 +28,8 @@ public class Turret {
     public static boolean encoderReversed = false;
     public static double encoderOffset = 0; // raw ticks when the shooter faces forward
 
-    public static double minTicks = -10809, maxTicks = 10809; // ~ +/-190 deg
+    public static double minTicks = -10240, maxTicks = 10240; // +/-180 deg
+    public static double wrapBuffer = 284; // ticks (~5 deg) the goal can go past a limit before the turret wraps
 
     public static double kP = 0.00035;
     public static double kD = 0.000014;
@@ -200,12 +201,14 @@ public class Turret {
         updateTarget(unwrap(degreesToTicks(angleFilter.update(odometryAngle, measurement))));
     }
 
-    // copy of the target inside the limits closest to the last target. stays on the same side until it runs
-    // past a limit, then wraps a full turn. the overlap past +/-180 is hysteresis, so it can't flip back mid-wrap
+    // copy of the target closest to the last target, within the limits +/- wrapBuffer. stays on the same side
+    // (held at the limit by updateTarget) until the goal is wrapBuffer past a limit, then wraps a full turn.
+    // the buffer is so it can't flip back and forth when the goal is right behind the robot
     private double unwrap(double ticks) {
         double turn = ticksPerTurretRev();
+        double min = minTicks - wrapBuffer, max = maxTicks + wrapBuffer;
         double best = Double.NaN;
-        for (double c = ticks + turn * Math.ceil((minTicks - ticks) / turn); c <= maxTicks; c += turn) {
+        for (double c = ticks + turn * Math.ceil((min - ticks) / turn); c <= max; c += turn) {
             if (Double.isNaN(best) || Math.abs(c - target) < Math.abs(best - target)) best = c;
         }
         if (!Double.isNaN(best)) return best;
