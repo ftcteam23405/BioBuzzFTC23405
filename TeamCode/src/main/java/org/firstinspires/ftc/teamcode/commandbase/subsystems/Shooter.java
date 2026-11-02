@@ -36,7 +36,7 @@ public class Shooter {
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
 
 
-    // straight-line distance to the closest goal (inches) -> flywheel velocity (ticks/s)
+    // ground (horizontal) distance to the closest goal (inches) -> flywheel velocity (ticks/s)
     // placeholder values, distances must be increasing
     private static final double[] DISTANCES = {40, 60, 80, 100, 120};
     private static final double[] VELOCITIES = {1200, 1250, 1300, 1350, 1400};
@@ -49,7 +49,7 @@ public class Shooter {
     private double openLoopPower = Double.NaN; // not NaN = fixed power, no PID (for tuning the feedforward)
     private double power = 0;
 
-    // pedro pose + limelight -> filtered straight-line distance from the robot to the closest goal center
+    // pedro pose + limelight -> filtered ground (horizontal) distance from the robot to the closest goal center
     private final GoalDistanceFilter distanceFilter = new GoalDistanceFilter();
     private double goalDistance = 0;
 

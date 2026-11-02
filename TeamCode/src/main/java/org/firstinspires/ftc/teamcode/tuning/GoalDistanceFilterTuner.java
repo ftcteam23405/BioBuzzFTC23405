@@ -32,6 +32,8 @@ import java.util.Map;
 // y = hold pedro only (weight 0), to watch how fast odometry drifts   back = clear everything
 //
 // how to tune, in order:
+// 0. Limelight.tagHeightAboveCamera. tape measure tag center and lens center up from the tiles (hive at its
+//    tallest point) and put in the difference
 // 1. offsets. these are already measured off the game manual's cluster drawing, so this is a check, not
 //    a tune. park in front of a cell so 2+ tags are in view: every tag should report the same distance to
 //    goal and SPREAD should sit under about an inch. a big spread means that cell's tag ids run right to

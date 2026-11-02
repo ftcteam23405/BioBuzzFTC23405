@@ -56,6 +56,8 @@ public class Limelight {
     private long lastGoodFrameMs = 0;                  // when we last cached a usable frame
 
     public static double distanceOffset = 8; // inches added to the camera-to-goal distance (camera to shooter)
+    // tag center height - limelight lens height (inches, hive at its tallest point), ground = sqrt(r^2 - h^2)
+    public static double tagHeightAboveCamera = 0;
     public static long maxStalenessMs = 150; // ignore results older than this
     public static long tagTimeoutMs = 250;   // forget the last tag reading after this long with no new frame
 
@@ -225,7 +227,7 @@ public class Limelight {
         tagIds = new ArrayList<>();
     }
 
-    // straight-line distance to the center of the closest goal in inches, or NaN if no tag has been seen
+    // ground distance to the center of the closest goal in inches (matches pedro), or NaN if no tag has been seen
     // every tag is shifted to its goal center first, so it doesn't matter which tag is detected
     public double distanceToGoal() {
         return goalDistance;
@@ -299,12 +301,17 @@ public class Limelight {
         Position p = tag.getCameraPoseTargetSpace().getPosition().toUnit(DistanceUnit.INCH);
         if (p.x == 0 && p.z == 0) return Double.NaN; // no pose solution for this tag, all zeros
 
-        // x and z are the flat plane through the tag, y is height, so this ignores how high the tag is
-        double[] xz = cameraToGoal(p.x, p.z, goalOffset(tag.getFiducialId()));
+        double[] toGoal = cameraToGoal(p.x, groundDepth(p), goalOffset(tag.getFiducialId()));
 
-        return Math.hypot(xz[0], xz[1]) + distanceOffset;
+        return Math.hypot(toGoal[0], toGoal[1]) + distanceOffset;
     }
 
+    // how far out in front of the tag the camera is, flat on the floor. the tag is tilted so y and z are
+    // slanted, but x is level: ground depth^2 = (x^2 + y^2 + z^2) - h^2 - x^2
+    private static double groundDepth(Position p) {
+        double h = tagHeightAboveCamera;
+        return Math.sqrt(Math.max(0, p.y * p.y + p.z * p.z - h * h));
+    }
 
     // tx points at the tag, the goal center is off to the side of it, so add the angle between the two rays
     private double angleToGoalCenter(LLResultTypes.FiducialResult tag) {
@@ -312,8 +319,9 @@ public class Limelight {
         if (offset == 0) return tag.getTargetXDegrees();
 
         Position p = tag.getCameraPoseTargetSpace().getPosition().toUnit(DistanceUnit.INCH);
-        double[] toGoal = cameraToGoal(p.x, p.z, offset);
-        double[] toTag = cameraToGoal(p.x, p.z, 0);
+        double depth = groundDepth(p);
+        double[] toGoal = cameraToGoal(p.x, depth, offset);
+        double[] toTag = cameraToGoal(p.x, depth, 0);
 
         // angle from the camera->tag ray to the camera->goal ray, signed the same way tx is
         // (target space x points left as you face the tag, so the cross product gets flipped to match tx)
@@ -323,10 +331,10 @@ public class Limelight {
         return tag.getTargetXDegrees() + Math.toDegrees(Math.atan2(cross, dot));
     }
 
-    // vector from the camera to the goal center, in the tag's flat plane, as {x, z}
-    // camera is at (px, pz) in target space and the goal center sits on the tag's face at x = -offset
-    private static double[] cameraToGoal(double px, double pz, double offset) {
-        return new double[] {-offset - px, -pz};
+    // vector from the camera to the goal center flat on the floor, as {along the tag, out from the tag}
+    // camera is px along and depth out in front of the tag, the goal center sits on the tag's face at x = -offset
+    private static double[] cameraToGoal(double px, double depth, double offset) {
+        return new double[] {-offset - px, -depth};
     }
 
     // inches from the tag to its goal center, 0 for a tag that isn't in the table
