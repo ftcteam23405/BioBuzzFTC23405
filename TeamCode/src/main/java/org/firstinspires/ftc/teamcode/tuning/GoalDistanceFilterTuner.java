@@ -124,7 +124,7 @@ public class GoalDistanceFilterTuner extends OpMode {
         limelight.periodic();
 
         // the filter predicts every loop off pedro and corrects only when a new tag frame shows up
-        Pose goal = Shooter.closestGoal(pose, alliance);
+        Pose goal = Shooter.closestGoal(pose);
         double fresh = limelight.freshDistanceToGoal();
         odometryDistance = pose.distance(goal);
         filtered = filter.update(pose, goal, fresh);

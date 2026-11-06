@@ -57,10 +57,10 @@ public class Teleop extends OpMode {
         robot.periodic();
         Scheduler.execute();
         //if the robot is not holding position, run the Teleop Drive
-        //if the alliance is Blue, then set the offset heading to PI rad. If not, then keep it 0 (for red)
+        //no heading offset for either alliance: blue's coordinates are red's turned 180 deg, so the drivers line up the same
         if (!hold) {
             DrivePowers powers = ManualDrive.fieldCentric(
-                    -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading(), (robot.alliance == Alliance.BLUE ? Math.toRadians(180) : Math.toRadians(0))
+                    -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading()
             );
             robot.follower.manual(powers);
         }

@@ -89,7 +89,7 @@ public class TurretTrackingTester extends OpMode {
         double turn = spinning ? spinPower : -gamepad1.right_stick_x;
         DrivePowers powers = ManualDrive.fieldCentric(
                 spinning ? 0 : -gamepad1.left_stick_y, spinning ? 0 : -gamepad1.left_stick_x, turn,
-                robot.follower.pose().heading(), robot.alliance == Alliance.BLUE ? Math.toRadians(180) : 0
+                robot.follower.pose().heading()
         );
         robot.follower.manual(powers);
 
@@ -145,7 +145,7 @@ public class TurretTrackingTester extends OpMode {
         joinedTelemetry.addData("Spinning", spinning);
         joinedTelemetry.addData("Pose", String.format(Locale.US, "x %.1f  y %.1f  h %.1f deg",
                 pose.x(), pose.y(), Math.toDegrees(pose.heading())));
-        Pose goal = Shooter.closestGoal(pose, robot.alliance); // same pick as Robot, minus its stickiness
+        Pose goal = Shooter.closestGoal(pose); // same pick as Robot, minus its stickiness
         joinedTelemetry.addData("Goal", String.format(Locale.US, "x %.0f  y %.0f  %.1f in away",
                 goal.x(), goal.y(), pose.distance(goal)));
         joinedTelemetry.addLine();

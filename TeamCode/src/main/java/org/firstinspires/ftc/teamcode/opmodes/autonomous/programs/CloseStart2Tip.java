@@ -22,7 +22,8 @@ import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 
 @Configurable
 //one single 2 Tip Close Start auto, then added alliance through constructor (same as Teleop)
-//poses are written for RED, and mirrored across the middle of the field for BLUE
+//poses are written for RED and used as-is for BLUE: start the robot on the blue side in the same spot
+//turned 180 deg, and the whole coordinate system comes along with it (nothing is mirrored)
 public class CloseStart2Tip extends OpMode {
 
     Robot robot;
@@ -39,7 +40,7 @@ public class CloseStart2Tip extends OpMode {
     public CloseStart2Tip(Alliance alliance) {
         this.alliance = alliance;
 
-        PoseFactory poseFactory = (alliance == Alliance.RED) ? PoseFactory.degrees() : PoseFactory.degrees().mirrorAroundPoint(71,71);
+        PoseFactory poseFactory = PoseFactory.degrees();
 
         startPose = poseFactory.of(54, 9, 90);
         intakeEnd = poseFactory.of(11.56, 11.05, 240);
@@ -55,7 +56,7 @@ public class CloseStart2Tip extends OpMode {
     }
 
     public Path goAcross1() { return line(intakeEnd, goAcross1End).linear(intakeEnd, goAcross1End); }
-    public Path goAcross2() { return line(goAcross1End, goAcross2End).constant(goAcross1End); } //constant(double) is radians, so use the pose's heading so it mirrors too
+    public Path goAcross2() { return line(goAcross1End, goAcross2End).constant(goAcross1End); } //constant(double) is radians, so use the pose's heading
     public Path goAcross() { //concatenation of goAcross paths
         return Paths.path(goAcross1(), goAcross2());
     }

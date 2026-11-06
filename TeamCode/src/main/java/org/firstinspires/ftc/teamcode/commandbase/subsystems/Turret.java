@@ -12,7 +12,6 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 
-import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
 
 import java.util.function.LongSupplier;
@@ -172,8 +171,8 @@ public class Turret {
     }
 
     // call every loop while tracking, before periodic()
-    public void aim(Pose robot, Alliance alliance, double limelightAngle) {
-        aim(robot, Shooter.closestGoal(robot, alliance), limelightAngle);
+    public void aim(Pose robot, double limelightAngle) {
+        aim(robot, Shooter.closestGoal(robot), limelightAngle);
     }
 
     public void aim(Pose robot, Pose goal, double limelightAngle) {

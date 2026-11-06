@@ -92,7 +92,7 @@ public class Robot {
         // the closer of our alliance's 2 goals, picked once so the shooter and turret always agree. only that
         // goal's tags go to the filters, a tag on our other goal would drag them toward the wrong one
         Pose pose = follower.pose();
-        goal = Shooter.closestGoal(pose, alliance, goal);
+        goal = Shooter.closestGoal(pose, goal);
         int[] goalTags = cellTags(goal);
 
         // the fresh readings are NaN unless a new tag frame came in this loop, which is what the
@@ -118,9 +118,9 @@ public class Robot {
     }
 
     // turning in place doesn't change the distance, but the turret angle filter would read the heading
-    // jump as the robot turning, so that one gets reset
+    // jump as the robot turning, so that one gets reset. 0 for both alliances, blue's frame is red's turned 180
     public void resetHeading() {
-        follower.setPose(follower.pose().withHeading(alliance == Alliance.BLUE ? Math.toRadians(180) : 0));
+        follower.setPose(follower.pose().withHeading(0));
         turret.resetFilter();
     }
 
@@ -132,7 +132,8 @@ public class Robot {
         turret.resetFilter();
     }
 
-    // tag ids on each of the 4 cells, same groups as Limelight's GOAL_OFFSETS
+    // tag ids on each of the 4 cells, same groups as Limelight's GOAL_OFFSETS. audience/far are the real
+    // field ends (audience cells are on the same end of the field for both alliances)
 
     private static final int[] RED_FAR_TAGS = {30, 31, 32, 33};
     private static final int[] RED_AUDIENCE_TAGS = {34, 35, 36, 37};
@@ -141,16 +142,18 @@ public class Robot {
 
     // tag ids on our alliance's cell that's closest to the robot (the one we're aiming at)
     public int[] closestCellTags() {
-        return cellTags(goal != null ? goal : Shooter.closestGoal(follower.pose(), alliance));
+        return cellTags(goal != null ? goal : Shooter.closestGoal(follower.pose()));
     }
 
     // tag ids on one of our alliance's cells, from Shooter.closestGoal()
+    // blue runs red's coordinates with the field turned 180 deg, so for blue the ends swap: the goal at
+    // audienceGoalY is physically blue's far cell, and the one at farGoalY is blue's audience cell
     private int[] cellTags(Pose goal) {
-        boolean audience = goal.y() == Shooter.audienceGoalY;
+        boolean atAudienceY = goal.y() == Shooter.audienceGoalY;
 
         if (alliance == Alliance.RED)
-            return audience ? RED_AUDIENCE_TAGS : RED_FAR_TAGS;
-        return audience ? BLUE_AUDIENCE_TAGS : BLUE_FAR_TAGS;
+            return atAudienceY ? RED_AUDIENCE_TAGS : RED_FAR_TAGS;
+        return atAudienceY ? BLUE_FAR_TAGS : BLUE_AUDIENCE_TAGS;
     }
 
     // true if the limelight can see at least one tag on the closest cell

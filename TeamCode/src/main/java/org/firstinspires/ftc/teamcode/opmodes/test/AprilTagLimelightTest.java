@@ -84,7 +84,7 @@ public class AprilTagLimelightTest extends OpMode {
 
         // NaN unless a new tag frame came in this loop, so the filter corrects once per frame
         if (shooter.isTracking())
-            shooter.setVelocityFromDistance(pose, alliance, limelight.freshDistanceToGoal());
+            shooter.setVelocityFromDistance(pose, limelight.freshDistanceToGoal());
         shooter.periodic();
 
         double loopMs = loopTimer.milliseconds();
@@ -109,7 +109,7 @@ public class AprilTagLimelightTest extends OpMode {
         telemetry.addData("Actual velocity", "%.0f", shooter.getVelocity());
         telemetry.addData("At target", shooter.atTarget());
 
-        Pose goal = Shooter.closestGoal(pose, alliance);
+        Pose goal = Shooter.closestGoal(pose);
         telemetry.addData("Closest goal", "(%.1f, %.1f)", goal.x(), goal.y());
 
         // odometry / limelight / filtered side by side, to check distanceOffset and the filter

@@ -11,7 +11,6 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 
-import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalDistanceFilter;
 
 import smile.interpolation.Interpolation;
@@ -29,8 +28,9 @@ public class Shooter {
     public static double tolerance = 50; // ticks/s
 
 
-    public static double redGoalX = 58;
-    public static double blueGoalX = 84;
+    // goal poses are red's for both alliances. blue runs the same coordinates with the field turned 180 deg
+    // (nothing is mirrored), so these land on blue's goals when the robot is on the blue side
+    public static double goalX = 58;
     public static double audienceGoalY = 52;
     public static double farGoalY = 90;
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
@@ -139,8 +139,8 @@ public class Shooter {
 
     // sets the target velocity from how far we are from the goal, using odometry + limelight
     // don't pass distanceToGoal() here
-    public void setVelocityFromDistance(Pose robot, Alliance alliance, double limelightDistance) {
-        setVelocityFromDistance(robot, closestGoal(robot, alliance), limelightDistance);
+    public void setVelocityFromDistance(Pose robot, double limelightDistance) {
+        setVelocityFromDistance(robot, closestGoal(robot), limelightDistance);
     }
 
     // limelightDistance must come from that goal's tags, see Limelight.freshDistanceToGoal(int[])
@@ -169,14 +169,13 @@ public class Shooter {
     }
 
     // the one of our 2 cells that's closer to the robot
-    public static Pose closestGoal(Pose robot, Alliance alliance) {
-        return closestGoal(robot, alliance, null);
+    public static Pose closestGoal(Pose robot) {
+        return closestGoal(robot, null);
     }
 
     // same, but sticks with current (the goal we're aiming at now, null for none) until the other one is
-    // goalSwitchMargin closer. a current goal that isn't one of this alliance's is ignored
-    public static Pose closestGoal(Pose robot, Alliance alliance, Pose current) {
-        double goalX = alliance == Alliance.RED ? redGoalX : blueGoalX;
+    // goalSwitchMargin closer. a current goal that isn't at goalX (changed live) is ignored
+    public static Pose closestGoal(Pose robot, Pose current) {
         Pose audienceGoal = new Pose(goalX, audienceGoalY);
         Pose farGoal = new Pose(goalX, farGoalY);
         double toAudience = robot.distance(audienceGoal);
