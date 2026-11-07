@@ -26,10 +26,10 @@ public class Shooter {
 
 
     // tune with ShooterAutoTuner: press a and it finds all three, then paste the lines it prints here
-    public static double kS = 0.1525;      // power to overcome friction
-    public static double kV = 0.0005261;   // power per tick/s
-    public static double kP = 0.002021;
-    public static double tolerance = 50; // ticks/s
+    public static double kS = 0.0957;      // power to overcome friction
+    public static double kV = 0.0004183;   // power per tick/s
+    public static double kP = 0.002;
+    public static double tolerance = 20; // ticks/s
     public static double nominalVoltage = 12; // V the gains are in, output gets scaled by nominalVoltage / battery
 
 
