@@ -9,7 +9,11 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+
+import java.util.List;
 
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalDistanceFilter;
 
@@ -26,6 +30,7 @@ public class Shooter {
     public static double kV = 0.0005261;   // power per tick/s
     public static double kP = 0.002021;
     public static double tolerance = 50; // ticks/s
+    public static double nominalVoltage = 12; // V the gains are in, output gets scaled by nominalVoltage / battery
 
 
     // goal poses are red's for both alliances. blue runs the same coordinates with the field turned 180 deg
@@ -43,6 +48,12 @@ public class Shooter {
     private static final Interpolation velocityTable = new LinearInterpolation(DISTANCES, VELOCITIES);
 
     private final DcMotorEx shooterMotor;
+    private final List<VoltageSensor> voltageSensors;
+
+    // battery reads are a hub command each, so only every VOLTAGE_PERIOD
+    private static final double VOLTAGE_PERIOD = 0.1; // s
+    private final ElapsedTime voltageTimer = new ElapsedTime();
+    private double batteryVoltage = Double.NaN;
 
     private double targetVelocity = 0;
     private boolean tracking = false; // true = velocity follows distance to the goal every loop
@@ -59,8 +70,9 @@ public class Shooter {
 
     public Shooter(HardwareMap hardwareMap) {
         shooterMotor = hardwareMap.get(DcMotorEx.class, "shooter");
+        voltageSensors = hardwareMap.getAll(VoltageSensor.class);
 
-        shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
         shooterMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -123,8 +135,25 @@ public class Shooter {
         double feedforward = kS + kV * targetVelocity;
         double feedback = kP * (targetVelocity - getVelocity());
 
+        // gains are in nominalVoltage terms, a sagging battery gets more power for the same output
+        double compensation = nominalVoltage / getBatteryVoltage();
+
         // let flywheel coast
-        setPower(Range.clip(feedforward + feedback, 0, 1));
+        setPower(Range.clip((feedforward + feedback) * compensation, 0, 1));
+    }
+
+    // lowest hub voltage, refreshed every VOLTAGE_PERIOD. nominalVoltage if no sensor reads
+    public double getBatteryVoltage() {
+        if (Double.isNaN(batteryVoltage) || voltageTimer.seconds() > VOLTAGE_PERIOD) {
+            voltageTimer.reset();
+            double lowest = Double.NaN;
+            for (VoltageSensor sensor : voltageSensors) {
+                double voltage = sensor.getVoltage();
+                if (voltage > 0 && (Double.isNaN(lowest) || voltage < lowest)) lowest = voltage;
+            }
+            batteryVoltage = Double.isNaN(lowest) ? nominalVoltage : lowest;
+        }
+        return batteryVoltage;
     }
 
     private void setPower(double power) {

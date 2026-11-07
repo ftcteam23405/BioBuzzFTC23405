@@ -63,6 +63,7 @@ public class ShooterTester extends OpMode {
         joinedTelemetry.addData("Error", shooter.getTargetVelocity() - shooter.getVelocity());
         joinedTelemetry.addData("At Target", shooter.atTarget());
         joinedTelemetry.addData("Power", shooter.getPower());
+        joinedTelemetry.addData("Battery", String.format("%.2f V", shooter.getBatteryVoltage()));
         joinedTelemetry.addLine();
         joinedTelemetry.addData("Intake Full", intake.isFull());
         joinedTelemetry.addLine(intake.getCurrent());

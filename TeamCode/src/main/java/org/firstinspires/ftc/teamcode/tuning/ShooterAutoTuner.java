@@ -300,9 +300,12 @@ public class ShooterAutoTuner extends OpMode {
             return;
         }
         endTestLog();
-        sweepPoints.add(new double[] {settledVelocity, sweepPower(sweepIndex)});
+        // the sweep is open loop, so scale its power to what it'd be at nominalVoltage. kS / kV then match
+        // the voltage compensated output in Shooter.periodic()
+        double voltage = batteryVoltage();
+        sweepPoints.add(new double[] {settledVelocity, sweepPower(sweepIndex) * voltage / Shooter.nominalVoltage});
         recordTimeConstant(settledVelocity);
-        voltageSum += batteryVoltage();
+        voltageSum += voltage;
         voltageCount++;
 
         sweepIndex++;
@@ -697,7 +700,7 @@ public class ShooterAutoTuner extends OpMode {
         }
 
         if (!sweepPoints.isEmpty()) {
-            joinedTelemetry.addLine("--- feedforward sweep: power -> ticks/s (rpm) ---");
+            joinedTelemetry.addLine("--- feedforward sweep: power (at nominalVoltage) -> ticks/s (rpm) ---");
             for (double[] p : sweepPoints)
                 joinedTelemetry.addLine(String.format(Locale.US, "%.2f -> %.0f (%.0f rpm)", p[1], p[0],
                         Globals.calculateRPM(p[0], ticksPerRev)));
