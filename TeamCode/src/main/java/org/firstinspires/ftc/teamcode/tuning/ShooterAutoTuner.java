@@ -40,12 +40,18 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 // 3. holds testVelocity with the new gains. feed a few real balls through and check DIP / RECOVERY
 // there's no kI or kD: with a fitted kV the feedforward already lands on the target, kI would only wind up during
 // spin up, and kD on a noisy velocity reading just adds chatter. kS + kV + kP is all the flywheel needs
+
+// time series: every test (each sweep power, each kP, and the hold) keeps its own series of
+// time | phase | target | velocity | rpm | power, one row every seriesInterval s (and at every phase change).
+// it's printed at the bottom of telemetry, following the test that's running. left / right bumper flips back
+// through earlier tests. nothing is saved to the hub, it's gone when the opmode stops
 @Configurable
 @Config
 @TeleOp
 public class ShooterAutoTuner extends OpMode {
     public static double testVelocity = 1300; // ticks/s the kP search and hold run at, use a typical shot speed
     public static double ticksPerRev = 28;    // flywheel motor encoder, for the rpm readout
+    public static double seriesInterval = 0.1; // s between time series rows in telemetry
 
     // feedforward sweep
     public static double sweepStartPower = 0.2;
@@ -119,6 +125,19 @@ public class ShooterAutoTuner extends OpMode {
     private double dipStart = 0, dipMin = 0;
     private double lastDip = Double.NaN, lastRecovery = Double.NaN;
 
+    // time series, one per test. rows are formatted as they're recorded so telemetry doesn't redo it every loop
+    private static final int MAX_SERIES_ROWS = 200; // oldest rows dropped past this (a long hold)
+    private static class TestLog {
+        String name;
+        final List<String> rows = new ArrayList<>();
+        double nextRow = 0;
+        Stage lastStage;
+    }
+    private final List<TestLog> testLogs = new ArrayList<>();
+    private TestLog testLog;     // the one recording now, null = none
+    private int viewIndex = -1;  // which test telemetry shows, -1 = the newest
+    private final ElapsedTime testTimer = new ElapsedTime();
+
     @Override
     public void init() {
         for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
@@ -147,6 +166,8 @@ public class ShooterAutoTuner extends OpMode {
         if (gamepad1.dpadRightWasPressed()) startRun(Run.KP);
         if (gamepad1.xWasPressed()) toggleHold();
         if (gamepad1.bWasPressed()) abort();
+        if (gamepad1.leftBumperWasPressed()) viewTest(-1);
+        if (gamepad1.rightBumperWasPressed()) viewTest(1);
 
         double t = stageTimer.seconds();
         double velocity = shooter.getVelocity();
@@ -163,6 +184,7 @@ public class ShooterAutoTuner extends OpMode {
         }
 
         shooter.periodic();
+        logSample(velocity); // after periodic so power is what this loop sent in response to this velocity
         addTelemetry(velocity);
     }
 
@@ -186,6 +208,9 @@ public class ShooterAutoTuner extends OpMode {
         double voltage = batteryVoltage();
         if (voltage < LOW_BATTERY)
             warnings.add(String.format(Locale.US, "battery is %.1f V, kS / kV come out different on a charged one", voltage));
+        testLogs.clear();
+        testLog = null;
+        viewIndex = -1;
 
         if (r == Run.KP) {
             startKPSearch();
@@ -216,6 +241,7 @@ public class ShooterAutoTuner extends OpMode {
     }
 
     private void abort() {
+        endTestLog(); // the partial test stays viewable, handy for seeing what went wrong
         if (running()) {
             restoreGains();
             status = "aborted, old gains put back";
@@ -225,6 +251,7 @@ public class ShooterAutoTuner extends OpMode {
     }
 
     private void fail(String message) {
+        endTestLog();
         restoreGains();
         shooter.stop();
         status = "FAILED: " + message;
@@ -254,6 +281,8 @@ public class ShooterAutoTuner extends OpMode {
     private void startSweepStep() {
         shooter.setOpenLoopPower(sweepPower(sweepIndex));
         enter(Stage.SWEEP);
+        startTestLog(String.format(Locale.US, "sweep %d / %d, power %.2f", sweepIndex + 1, sweepCount(),
+                sweepPower(sweepIndex)));
     }
 
     private void updateSweep(double t, double velocity) {
@@ -270,6 +299,7 @@ public class ShooterAutoTuner extends OpMode {
                     + "(is it plugged into the right motor?)");
             return;
         }
+        endTestLog();
         sweepPoints.add(new double[] {settledVelocity, sweepPower(sweepIndex)});
         recordTimeConstant(settledVelocity);
         voltageSum += batteryVoltage();
@@ -406,6 +436,7 @@ public class ShooterAutoTuner extends OpMode {
         Shooter.kP = kP;
         shooter.setTargetVelocity(testVelocity);
         enter(Stage.KP_SETTLE);
+        startTestLog(String.format(Locale.US, "kP test %d, kP %.6f", kPTestResults.size() + 1, kP));
     }
 
     // timeouts scale with how slow the flywheel is, 1 s if the sweep didn't run
@@ -470,6 +501,7 @@ public class ShooterAutoTuner extends OpMode {
     }
 
     private void scoreKPTest() {
+        endTestLog();
         double tolerance = Shooter.tolerance;
         boolean oscillating = current.noise > oscillationFactor * quietestNoise && current.noise > 0.3 * tolerance;
         boolean overshoots = current.overshoot > overshootLimit * tolerance;
@@ -529,6 +561,7 @@ public class ShooterAutoTuner extends OpMode {
     private void toggleHold() {
         if (running()) return;
         if (stage == Stage.HOLD) {
+            endTestLog();
             shooter.stop();
             enter(Stage.IDLE);
         } else {
@@ -541,6 +574,7 @@ public class ShooterAutoTuner extends OpMode {
         holdSettled = false;
         inDip = false;
         enter(Stage.HOLD);
+        startTestLog("hold");
     }
 
     private void updateHold(double t, double velocity) {
@@ -564,6 +598,52 @@ public class ShooterAutoTuner extends OpMode {
                 lastRecovery = t - dipStart;
             }
         }
+    }
+
+    // ---------------------------------------------------------------- time series
+
+    private void startTestLog(String name) {
+        testLog = new TestLog();
+        testLog.name = name;
+        testLogs.add(testLog);
+        testTimer.reset();
+    }
+
+    private void endTestLog() {
+        testLog = null;
+    }
+
+    // one row every seriesInterval, plus one whenever the phase changes so the fake shot etc. always shows up
+    private void logSample(double velocity) {
+        if (testLog == null) return;
+        double t = testTimer.seconds();
+        if (stage == testLog.lastStage && t < testLog.nextRow) return;
+
+        testLog.lastStage = stage;
+        testLog.nextRow = t + Math.max(0.02, seriesInterval);
+        testLog.rows.add(String.format(Locale.US, "%.2f | %s | %.0f | %.0f | %.0f | %.3f",
+                t, stage.name().toLowerCase(Locale.US).replace("kp_", ""), shooter.getTargetVelocity(), velocity,
+                Globals.calculateRPM(velocity, ticksPerRev), shooter.getPower()));
+        if (testLog.rows.size() > MAX_SERIES_ROWS) testLog.rows.remove(0);
+    }
+
+    // lb / rb step back and forward through the tests, stepping past the newest goes back to following it
+    private void viewTest(int step) {
+        if (testLogs.isEmpty()) return;
+        int newest = testLogs.size() - 1;
+        int index = viewIndex < 0 ? newest : viewIndex;
+        index = Math.max(0, index + step);
+        viewIndex = index >= newest ? -1 : index;
+    }
+
+    private void addTimeSeries() {
+        if (testLogs.isEmpty()) return;
+        int index = viewIndex < 0 ? testLogs.size() - 1 : Math.min(viewIndex, testLogs.size() - 1);
+        TestLog log = testLogs.get(index);
+        joinedTelemetry.addLine(String.format(Locale.US, "--- time series, test %d / %d: %s%s  (lb / rb) ---",
+                index + 1, testLogs.size(), log.name, viewIndex < 0 ? "" : "  [rb to the newest to follow]"));
+        joinedTelemetry.addLine("time s | phase | target | velocity | rpm | power");
+        for (String row : log.rows) joinedTelemetry.addLine(row);
     }
 
     // ---------------------------------------------------------------- telemetry
@@ -631,6 +711,9 @@ public class ShooterAutoTuner extends OpMode {
         }
 
         joinedTelemetry.addLine("a = auto tune  dpad up = kS/kV only  dpad right = kP only  x = hold  b = stop");
+        joinedTelemetry.addLine("lb / rb = flip through each test's time series");
+        joinedTelemetry.addLine();
+        addTimeSeries(); // last, it's the longest
         joinedTelemetry.update();
     }
 
