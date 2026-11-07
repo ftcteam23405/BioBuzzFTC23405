@@ -11,20 +11,10 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 
 // dpad up/down = target +/- bigStep   dpad left/right = target +/- smallStep (left = turret left)
 // a = 0 (forward)   x = leftPreset   b = rightPreset   y = motor off
-// back = zero here (motor off)   start = resync (motor off)
+// back = zero here (motor off)   start = resync from the abs encoder (motor off)
 //
-// SETUP (motor off, use y):
-// 1. Plug the encoder's 3-pin analog output into an analog port, name it "encoder" in the config.
-//    Set Turret.gearRatio to encoder turns per turret turn (5 if it's on the 5:1 input, 1 if on the turret).
-// 2. Spin the turret slowly by hand. RAW should sweep 0-4096 and VOLTAGE 0-3.2 V. If the voltage tops out
-//    lower, set Turret.maxVoltage to that.
-// 3. Turn the turret left. ANGLE should go up. If not, flip Turret.encoderReversed.
-// 4. Point the shooter straight forward, press back. Copy RAW into Turret.encoderOffset in Turret.java.
-// 5. Turn it 90 deg left by hand, ANGLE should read ~90 (5120 ticks). If it's off by a factor, gearRatio is wrong.
-// 6. Press a. If it drives away from 0, flip the motor direction in Turret's constructor.
-// 7. Turn to each hard stop and put a few deg inside those POSITIONs (ticks) into Turret.minTicks / maxTicks.
-// At 5:1 the encoder repeats every 72 turret deg, so the turret must be within 36 deg of forward when the
-// robot powers on. If ANGLE is off by a multiple of 72, point it forward and press start.
+// ANGLE / POSITION come from the motor encoder (what the PID uses). ABS ANGLE comes from the analog encoder,
+// which is only used to set the starting position. see the setup steps in the tuning guide
 @Configurable
 @Config
 @TeleOp
@@ -35,6 +25,7 @@ public class TurretTester extends OpMode {
 
     private Turret turret;
     private double target = 0; // deg
+    private double minVoltSeen = Double.NaN, maxVoltSeen = Double.NaN;
 
     @Override
     public void init() {
@@ -48,8 +39,7 @@ public class TurretTester extends OpMode {
     public void init_loop() {
         if (gamepad1.backWasPressed()) turret.zeroHere();
         if (gamepad1.startWasPressed()) turret.resync();
-        turret.periodic();
-        addTelemetry();
+        update();
     }
 
     @Override
@@ -73,8 +63,7 @@ public class TurretTester extends OpMode {
             if (gamepad1.startWasPressed()) turret.resync();
         }
 
-        turret.periodic();
-        addTelemetry();
+        update();
     }
 
     private void goTo(double degrees) {
@@ -82,23 +71,39 @@ public class TurretTester extends OpMode {
         turret.setTargetDegrees(target);
     }
 
-    private void addTelemetry() {
+    private void update() {
+        turret.periodic();
+        turret.readAbsolute();
+
+        double v = turret.getVoltage();
+        if (Double.isNaN(minVoltSeen) || v < minVoltSeen) minVoltSeen = v;
+        if (Double.isNaN(maxVoltSeen) || v > maxVoltSeen) maxVoltSeen = v;
+
         telemetry.addData("Mode", turret.isEnabled() ? "PID" : "OFF (turn by hand)");
         telemetry.addLine();
+        telemetry.addLine("--- motor encoder (control) ---");
         telemetry.addData("ANGLE", "%.2f deg", turret.getAngle());
-        telemetry.addData("POSITION", "%.0f ticks", turret.getPosition());
+        telemetry.addData("POSITION", "%.0f ticks  (raw motor %.0f)", turret.getPosition(), turret.getMotorTicks());
         telemetry.addData("Target", "%.2f deg  (%.0f ticks)", turret.isEnabled() ? turret.getTargetDegrees() : target,
                 turret.isEnabled() ? turret.getTarget() : Turret.degreesToTicks(target));
-        telemetry.addData("Error", "%.0f ticks  (%.2f deg)", turret.getError(), Turret.ticksToDegrees(turret.getError()));
+        telemetry.addData("Error", "%.1f ticks  (%.2f deg)", turret.getError(), Turret.ticksToDegrees(turret.getError()));
         telemetry.addData("At target", turret.atTarget());
         telemetry.addData("Power", "%.3f", turret.getPower());
         telemetry.addData("Velocity", "%.0f ticks/s", turret.getVelocity());
         telemetry.addLine();
-        telemetry.addData("RAW", "%.0f ticks  (offset %.0f)", turret.getRawTicks(), Turret.encoderOffset);
-        telemetry.addData("VOLTAGE", "%.3f V  (max %.2f)", turret.getVoltage(), Turret.maxVoltage);
-        telemetry.addData("Gear ratio", "%.2f  reversed %b  %.1f ticks/deg", Turret.gearRatio, Turret.encoderReversed, Turret.degreesToTicks(1));
+        telemetry.addLine("--- abs encoder (startup only) ---");
+        telemetry.addData("ABS ANGLE", "%.2f deg  (only right within +/-%.0f deg of forward)",
+                turret.getAbsoluteAngle(), 180 / Turret.encoderGearRatio);
+        telemetry.addData("ABS CHECK", "%.2f deg  (should stay ~0 everywhere)", turret.getAbsoluteCheck());
+        telemetry.addData("ENCODER", "%.1f deg  (offset %.1f)", turret.getEncoderDegrees(), Turret.encoderOffset);
+        telemetry.addData("VOLTAGE", "%.3f V  (seen %.3f to %.3f, set %.2f to %.2f)", v, minVoltSeen, maxVoltSeen,
+                Turret.minVoltage, Turret.maxVoltage);
+        telemetry.addLine();
+        telemetry.addData("Ratios", "%.1f motor ticks/rev x %.2f = %.1f ticks/turret turn, abs %.2f:1",
+                Turret.motorTicksPerRev, Turret.gearRatio, Turret.ticksPerTurretRev(), Turret.encoderGearRatio);
+        telemetry.addData("Reversed", "motor %b  abs %b", Turret.motorReversed, Turret.encoderReversed);
         telemetry.addData("Limits", "%.0f to %.0f ticks", Turret.minTicks, Turret.maxTicks);
-        telemetry.addData("Gains", "kP %.6f  kD %.7f  kS %.3f", Turret.kP, Turret.kD, Turret.kS);
+        telemetry.addData("Gains", "kP %.4f  kD %.5f  kS %.3f", Turret.kP, Turret.kD, Turret.kS);
         telemetry.update();
     }
 

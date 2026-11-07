@@ -15,24 +15,30 @@ import java.util.Locale;
 
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 
-// Steps the turret between two absolute positions (ticks) and scores each step. Gains live under Turret in
-// Panels/Dashboard and apply next loop. Graph Target and Position. ~56.9 ticks per turret deg at 5:1.
+// Steps the turret between two positions (motor encoder ticks) and scores each step. Gains live under Turret in
+// Panels/Dashboard and apply next loop. Graph Target and Position. ~2.02 ticks per turret deg (725.5 per turn).
 // a = start/stop stepping   b = motor off   x = hold targetA   y = hold targetB
-// init: back = resync (point the shooter forward first)
+// init: back = resync from the abs encoder (point the shooter forward first)
 //
-// HOW TO TUNE (run TurretTester first so the encoder is set up):
-// 1. Set kD, kS, kV to 0. Raise kP until it reaches the target fast with a little overshoot.
+// HOW TO TUNE (run TurretTester first so both encoders are set up):
+// The defaults (kP 0.02, kD 0.0016, kS 0.08) came from a sim, so first just press a and check them against
+// the goal below. Only retune if they miss it.
+// 1. Set kS, kV to 0 and kD to 0.001 (NOT 0, the turret is heavy and with no kD every kP overshoots ~25 deg
+//    and the gear slop makes it oscillate). Raise kP until it reaches the target fast with a little overshoot.
 // 2. Raise kD until the overshoot is gone. Too much kD makes it buzz near the target.
-// 3. Set stepSize to 228 (~4 deg). Raise kS until small steps just reach the target. Too much and it hunts.
-// 4. Set stepSize to 6827 (~120 deg) and check it doesn't slam. Lower maxPower if it does.
-// Goal: SETTLE < 0.3 s on a 2560 tick (45 deg) step, OVERSHOOT < ~100 ticks, STEADY ERROR inside tolerance.
+// 3. Set stepSize to 8 (~4 deg). Raise kS until small steps just reach the target. Too much and it hunts.
+//    Go back to stepSize 91 and repeat 1-3 once, the gains affect each other.
+// kV is tuned in TurretTrackingTester (spin with y), the tuner never moves the target so it does nothing here.
+// 4. Set stepSize to 242 (~120 deg) and check it doesn't slam. Steps over wrapError (~90 deg) use wrapPower,
+//    not maxPower, so lower wrapPower if it does.
+// Goal: SETTLE < 0.3 s on a 91 tick (45 deg) step, OVERSHOOT < ~4 ticks, STEADY ERROR inside tolerance.
 // Copy the final gains into Turret.java.
 @Configurable
 @Config
 @TeleOp
 public class TurretPIDTuner extends OpMode {
     public static double center = 0;       // ticks
-    public static double stepSize = 2560;  // ticks, ~45 deg
+    public static double stepSize = 91;    // ticks, ~45 deg
     public static double holdTime = 1.5;  // s
 
     private Turret turret;
@@ -103,13 +109,13 @@ public class TurretPIDTuner extends OpMode {
         joinedTelemetry.addLine();
 
         joinedTelemetry.addData("Mode", !turret.isEnabled() ? "OFF" : stepping ? "STEPPING (a to stop)" : "HOLDING");
-        joinedTelemetry.addData("Gains", String.format(Locale.US, "kP %.6f  kD %.7f  kS %.3f  max %.2f",
-                Turret.kP, Turret.kD, Turret.kS, Turret.maxPower));
+        joinedTelemetry.addData("Gains", String.format(Locale.US, "kP %.4f  kD %.5f  kS %.3f  max %.2f  wrap %.2f",
+                Turret.kP, Turret.kD, Turret.kS, Turret.maxPower, Turret.wrapPower));
         joinedTelemetry.addLine();
         joinedTelemetry.addLine("--- last step ---");
         joinedTelemetry.addData("SETTLE", lastSettle < 0 ? "never got inside tolerance" : String.format(Locale.US, "%.2f s", lastSettle));
-        joinedTelemetry.addData("OVERSHOOT", String.format(Locale.US, "%.0f ticks  (%.2f deg)", lastOvershoot, Turret.ticksToDegrees(lastOvershoot)));
-        joinedTelemetry.addData("STEADY ERROR", String.format(Locale.US, "%.0f ticks  (tolerance %.0f)", lastSteadyError, Turret.tolerance));
+        joinedTelemetry.addData("OVERSHOOT", String.format(Locale.US, "%.1f ticks  (%.2f deg)", lastOvershoot, Turret.ticksToDegrees(lastOvershoot)));
+        joinedTelemetry.addData("STEADY ERROR", String.format(Locale.US, "%.1f ticks  (tolerance %.1f)", lastSteadyError, Turret.tolerance));
         joinedTelemetry.update();
     }
 

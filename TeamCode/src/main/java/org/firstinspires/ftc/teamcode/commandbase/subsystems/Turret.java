@@ -16,35 +16,46 @@ import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
 
 import java.util.function.LongSupplier;
 
-// 20480 ticks per turret turn (4096 * 5:1)
+// every position, target, limit and PID number in here is in MOTOR ENCODER TICKS from forward
+// (0 = shooter facing forward, positive = left / ccw from above). 145.1 * 5 = 725.5 ticks per turret turn,
+// ~2.02 ticks per deg. degrees only show up in the aiming math and get turned into ticks with degreesToTicks()
+//
+// the analog absolute encoder is ONLY used to find where the turret is when the code starts (resync()).
+// after that everything runs off the motor's own encoder, which the hub keeps counting between opmodes,
+// so the zero is static and carries over from auto to teleop
 @Configurable
 @Config
 public class Turret {
 
-    public static double ticksPerEncoderRev = 4096;
-    public static double gearRatio = 5;
-    public static double maxVoltage = 3.2;
+    // motor encoder (all the control math)
+    public static double motorTicksPerRev = 145.1; // goBILDA 1150 rpm yellow jacket, at the output shaft
+    public static double gearRatio = 5;            // motor output turns per turret turn
+    public static boolean motorReversed = false;   // flips power AND the encoder together, so the PID can't fight itself
+
+    // absolute encoder (only for the starting position)
+    public static double minVoltage = 0, maxVoltage = 3.2; // lowest / highest voltage it reads over one of its turns
     public static boolean encoderReversed = false;
-    public static double encoderOffset = 0; // raw ticks when the shooter faces forward
+    public static double encoderGearRatio = 5; // abs encoder turns per turret turn (5 on the 5:1 input, 1 on the turret)
+    public static double encoderOffset = 0;    // abs encoder reading (0-360 deg) when the shooter faces forward
 
-    public static double minTicks = -10240, maxTicks = 10240; // +/-180 deg
-    public static double wrapBuffer = 284; // ticks (~5 deg) the goal can go past a limit before the turret wraps
+    // ticks. +/-180 deg
+    public static double minTicks = -362, maxTicks = 362;
+    public static double wrapBuffer = 10; // ticks (~5 deg) the goal can go past a limit before the turret wraps
 
-    public static double kP = 0.00035;
-    public static double kD = 0.000014;
-    public static double kS = 0.04;
-    public static double kV = 0;           // power per tick/s of target motion
+    // starting gains from a physics sim (estimated friction / inertia / backlash), confirm on the robot
+    public static double kP = 0.02;
+    public static double kD = 0.0016;
+    public static double kS = 0.08;
+    public static double kV = 0.0003;      // power per tick/s of target motion, ~1 / turret top speed
     public static double maxPower = 0.8;
     public static double wrapPower = 1;    // max power while error > wrapError, so wrapping around is fast
-    public static double wrapError = 5120; // ~90 deg
-    public static double tolerance = 57;   // ~1 deg
+    public static double wrapError = 181;  // ~90 deg
+    public static double tolerance = 2;    // ~1 deg
 
     // aiming
     public static double pivotForward = 0, pivotLeft = 0;
     public static double cameraYawOffset = 0; // deg
-    public static double maxCorrectionSpeed = 3413; // ticks/s (~60 deg/s), limelight ignored above this
-
-    private static final double TARGET_JUMP = 284; // ticks (~5 deg), a bigger target change restarts the D term
+    public static double maxCorrectionSpeed = 121; // ticks/s (~60 deg/s), limelight ignored above this
 
     static LongSupplier clock = System::nanoTime;
 
@@ -57,16 +68,12 @@ public class Turret {
     private double targetRate = 0;
     private boolean clamped = false;
 
-    private double rawTicks = 0;
     private double position = 0, velocity = 0, power = 0;
-    private double lastError = 0;
-    private long lastNanos = 0;
+    private double voltage = 0, encoderDegrees = 0;
 
-    // static so it carries over from auto to teleop
-    private static double encoderTicks = Double.NaN;
-    private static double lastRawTicks = 0;
-    private double encoderRate = 0;
-    private long lastReadNanos = 0;
+    // raw motor encoder count (direction not applied) when the shooter faces forward. static so it carries over
+    // from auto to teleop, NaN until the first Turret after the app starts
+    private static double zeroTicks = Double.NaN;
 
     private final GoalAngleFilter angleFilter = new GoalAngleFilter();
     private double odometryAngle = 0;
@@ -78,24 +85,18 @@ public class Turret {
         motor = hardwareMap.get(DcMotorEx.class, "turret");
         encoder = hardwareMap.get(AnalogInput.class, "encoder");
 
+        // keep this FORWARD, motorReversed does the flipping so it can be changed live
         motor.setDirection(DcMotorSimple.Direction.FORWARD);
-        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // doesn't reset the count
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        lastReadNanos = clock.getAsLong();
-        if (Double.isNaN(encoderTicks) || gearRatio <= 1) {
-            resync();
-        } else {
-            rawTicks = readRawTicks();
-            encoderTicks += wrap(rawTicks - lastRawTicks, ticksPerEncoderRev);
-            lastRawTicks = rawTicks;
-            updatePosition();
-        }
+        if (Double.isNaN(zeroTicks)) resync();
+        else readMotor();
         stop();
     }
 
     public static double ticksPerTurretRev() {
-        return ticksPerEncoderRev * gearRatio;
+        return motorTicksPerRev * gearRatio;
     }
 
     public static double degreesToTicks(double degrees) {
@@ -114,28 +115,54 @@ public class Turret {
         return a;
     }
 
-    // encoder ticks within its own turn, 0 to ticksPerEncoderRev
-    private double readRawTicks() {
-        double ticks = Range.clip(encoder.getVoltage() / maxVoltage, 0, 1) * ticksPerEncoderRev;
-        if (encoderReversed) ticks = ticksPerEncoderRev - ticks;
-        return ticks % ticksPerEncoderRev;
+    private double direction() {
+        return motorReversed ? -1 : 1;
     }
 
-    // picks the encoder turn that puts the turret closest to forward
+    private double rawMotorTicks() {
+        return motor.getCurrentPosition();
+    }
+
+    // ---------------- absolute encoder ----------------
+
+    // reads the abs encoder once and caches it. only resync() and testers need this, not the control loop
+    public void readAbsolute() {
+        voltage = encoder.getVoltage();
+        double span = Math.max(maxVoltage - minVoltage, 1e-3);
+        double deg = Range.clip((voltage - minVoltage) / span, 0, 1) * 360;
+        if (encoderReversed) deg = 360 - deg;
+        encoderDegrees = deg % 360;
+    }
+
+    // turret deg from forward according to the abs encoder alone. only right within +/- 180 / encoderGearRatio
+    // of forward (+/-36 deg at 5:1), past that it repeats
+    public double getAbsoluteAngle() {
+        return GoalAngleFilter.wrap(encoderDegrees - encoderOffset) / encoderGearRatio;
+    }
+
+    // turret deg the motor encoder and the abs encoder disagree by (mod one abs encoder turn). should stay ~0
+    // as the turret moves anywhere. if it grows as you turn, motorTicksPerRev / gearRatio / encoderGearRatio
+    // is wrong. if it jumps, a belt or gear slipped
+    public double getAbsoluteCheck() {
+        double expected = encoderOffset + getAngle() * encoderGearRatio;
+        return GoalAngleFilter.wrap(encoderDegrees - expected) / encoderGearRatio;
+    }
+
+    // sets the motor encoder zero from the abs encoder, assuming the turret is within +/-36 deg (at 5:1) of forward
     public void resync() {
-        rawTicks = readRawTicks();
-        lastRawTicks = rawTicks;
-        encoderTicks = encoderOffset + wrap(rawTicks - encoderOffset, ticksPerEncoderRev);
-        encoderRate = 0;
-        lastError = 0;
-        updatePosition();
+        readAbsolute();
+        zeroTicks = rawMotorTicks() - direction() * degreesToTicks(getAbsoluteAngle());
+        readMotor();
     }
 
     // turret is facing forward now
     public void zeroHere() {
-        encoderOffset = readRawTicks();
+        readAbsolute();
+        encoderOffset = encoderDegrees;
         resync();
     }
+
+    // ---------------- commands ----------------
 
     // hold a position in ticks, stops tracking
     public void setTarget(double ticks) {
@@ -169,6 +196,8 @@ public class Turret {
     public boolean isEnabled() {
         return enabled;
     }
+
+    // ---------------- aiming ----------------
 
     // call every loop while tracking, before periodic()
     public void aim(Pose robot, double limelightAngle) {
@@ -212,9 +241,9 @@ public class Turret {
         }
         if (!Double.isNaN(best)) return best;
 
-        double pastMin = minTicks + wrap(ticks - minTicks, turn);
-        double pastMax = maxTicks + wrap(ticks - maxTicks, turn);
-        return Math.abs(pastMin - minTicks) < Math.abs(pastMax - maxTicks) ? pastMin : pastMax;
+        // limits less than a turn apart and the goal is in the gap between them: stay at the limit we're already
+        // at. picking the limit nearest the goal would flip sides every time the goal crosses the middle of the gap
+        return Math.abs(target - minTicks) < Math.abs(target - maxTicks) ? minTicks : maxTicks;
     }
 
     // deg, robot frame
@@ -227,23 +256,21 @@ public class Turret {
         return GoalAngleFilter.wrap(Math.toDegrees(fieldAngle - heading));
     }
 
+    // ---------------- control loop ----------------
+
     public void periodic() {
-        readEncoder();
+        readMotor();
 
         if (!enabled) {
             setPower(0);
             return;
         }
 
-        long now = clock.getAsLong();
-        double dt = (now - lastNanos) / 1e9;
-        lastNanos = now;
-        if (dt <= 0 || dt > 0.5) dt = 0;
-
         double error = target - position;
 
-        double derivative = dt > 0 ? (error - lastError) / dt : 0;
-        lastError = error;
+        // d(error)/dt from the hub's measured velocity instead of differencing the error, so target jumps
+        // (setTarget, limelight corrections) don't kick it
+        double derivative = targetRate - velocity;
 
         double out = kP * error + kD * derivative + kV * targetRate;
         if (Math.abs(error) > tolerance) out += kS * Math.signum(error);
@@ -258,45 +285,34 @@ public class Turret {
     private void updateTarget(double ticks) {
         double clipped = Range.clip(ticks, minTicks, maxTicks);
         clamped = clipped != ticks;
-
-        if (Math.abs(clipped - target) > TARGET_JUMP) lastError = clipped - position;
         target = clipped;
     }
 
-    // counts encoder turns, assuming it keeps its last speed
-    private void readEncoder() {
-        long now = clock.getAsLong();
-        double dt = (now - lastReadNanos) / 1e9;
-        lastReadNanos = now;
-        boolean valid = dt > 0 && dt <= 0.5;
-
-        rawTicks = readRawTicks();
-        double predicted = valid ? encoderRate * dt : 0;
-        double delta = predicted + wrap(rawTicks - lastRawTicks - predicted, ticksPerEncoderRev);
-        encoderTicks += delta;
-        lastRawTicks = rawTicks;
-        encoderRate = valid ? delta / dt : 0;
-
-        updatePosition();
-    }
-
-    private void updatePosition() {
-        position = encoderTicks - encoderOffset;
-        velocity = encoderRate;
+    private void readMotor() {
+        position = direction() * (rawMotorTicks() - zeroTicks);
+        velocity = direction() * motor.getVelocity();
     }
 
     private void setPower(double p) {
         power = p;
-        motor.setPower(p);
+        motor.setPower(direction() * p);
     }
 
-    // encoder ticks within its own turn
-    public double getRawTicks() {
-        return rawTicks;
+    // ---------------- getters ----------------
+
+    // raw motor encoder count, no zero or direction applied
+    public double getMotorTicks() {
+        return rawMotorTicks();
     }
 
+    // from the last readAbsolute()
     public double getVoltage() {
-        return encoder.getVoltage();
+        return voltage;
+    }
+
+    // abs encoder reading 0-360 deg, from the last readAbsolute()
+    public double getEncoderDegrees() {
+        return encoderDegrees;
     }
 
     // ticks from forward
