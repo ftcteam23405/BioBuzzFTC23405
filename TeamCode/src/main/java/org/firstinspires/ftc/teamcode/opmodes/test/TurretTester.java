@@ -21,7 +21,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 public class TurretTester extends OpMode {
     public static double bigStep = 15;   // deg
     public static double smallStep = 1;  // deg
-    public static double leftPreset = 90, rightPreset = -90;
+    public static double leftPreset = -270, rightPreset = -90; // the turret only goes clockwise, so left is -270
 
     private Turret turret;
     private double target = 0; // deg
@@ -92,8 +92,8 @@ public class TurretTester extends OpMode {
         telemetry.addData("Velocity", "%.0f ticks/s", turret.getVelocity());
         telemetry.addLine();
         telemetry.addLine("--- abs encoder (startup only) ---");
-        telemetry.addData("ABS ANGLE", "%.2f deg  (only right within +/-%.0f deg of forward)",
-                turret.getAbsoluteAngle(), 180 / Turret.encoderGearRatio);
+        telemetry.addData("ABS ANGLE", "%.2f deg  (only right from %.0f to %.0f deg)", turret.getAbsoluteAngle(),
+                Turret.absoluteWindowTop() - 360 / Turret.encoderGearRatio, Turret.absoluteWindowTop());
         telemetry.addData("ABS CHECK", "%.2f deg  (should stay ~0 everywhere)", turret.getAbsoluteCheck());
         telemetry.addData("ENCODER", "%.1f deg  (offset %.1f)", turret.getEncoderDegrees(), Turret.encoderOffset);
         telemetry.addData("VOLTAGE", "%.3f V  (seen %.3f to %.3f, set %.2f to %.2f)", v, minVoltSeen, maxVoltSeen,

@@ -165,8 +165,9 @@ public class TurretTrackingTester extends OpMode {
         joinedTelemetry.addData("Filter dx", String.format(Locale.US, "%.2f deg", turret.getFilterDx()));
         joinedTelemetry.addLine();
 
-        joinedTelemetry.addData("Limits", String.format(Locale.US, "+/-%.0f deg  wrap buffer %.1f deg",
-                Turret.ticksToDegrees(Turret.maxTicks), Turret.ticksToDegrees(Turret.wrapBuffer)));
+        joinedTelemetry.addData("Limits", String.format(Locale.US, "%.0f to %.0f deg  wrap buffer %.1f deg",
+                Turret.ticksToDegrees(Turret.minTicks), Turret.ticksToDegrees(Turret.maxTicks),
+                Turret.ticksToDegrees(Turret.wrapBuffer)));
         joinedTelemetry.addData("Loop", String.format(Locale.US, "%.0f Hz", robot.getLoopTimeHz()));
         joinedTelemetry.update();
     }

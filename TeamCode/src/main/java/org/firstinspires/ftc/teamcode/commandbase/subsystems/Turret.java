@@ -30,20 +30,20 @@ public class Turret {
     // motor encoder (all the control math)
     public static double motorTicksPerRev = 145.1; // goBILDA 1150 rpm yellow jacket, at the output shaft
     public static double gearRatio = 5;            // motor output turns per turret turn
-    public static boolean motorReversed = false;   // flips power AND the encoder together, so the PID can't fight itself
+    public static boolean motorReversed = true;   // flips power AND the encoder together, so the PID can't fight itself
 
     // absolute encoder (only for the starting position)
     public static double minVoltage = 0, maxVoltage = 3.2; // lowest / highest voltage it reads over one of its turns
     public static boolean encoderReversed = false;
     public static double encoderGearRatio = 5; // abs encoder turns per turret turn (5 on the 5:1 input, 1 on the turret)
-    public static double encoderOffset = 0;    // abs encoder reading (0-360 deg) when the shooter faces forward
+    public static double encoderOffset = 252.2;    // abs encoder reading (0-360 deg) when the shooter faces forward
 
-    // ticks. +/-180 deg
-    public static double minTicks = -362, maxTicks = 362;
+    public static double minTicks = -725.5, maxTicks = 0;
     public static double wrapBuffer = 10; // ticks (~5 deg) the goal can go past a limit before the turret wraps
+    public static double resyncMargin = 5; // deg past maxTicks a startup abs reading still counts as inside the limits
 
-    // starting gains from a physics sim (estimated friction / inertia / backlash), confirm on the robot
-    public static double kP = 0.02;
+
+    public static double kP = 0.01;
     public static double kD = 0.0016;
     public static double kS = 0.08;
     public static double kV = 0.0003;      // power per tick/s of target motion, ~1 / turret top speed
@@ -134,10 +134,18 @@ public class Turret {
         encoderDegrees = deg % 360;
     }
 
-    // turret deg from forward according to the abs encoder alone. only right within +/- 180 / encoderGearRatio
-    // of forward (+/-36 deg at 5:1), past that it repeats
+    // turret deg from forward according to the abs encoder alone. it repeats every 360 / encoderGearRatio deg
+    // (72 at 5:1), so it's put in the one repeat that ends resyncMargin past maxTicks: -67 to +5 deg at 5:1.
+    // the turret can't be left of forward, so a reading of +20 is really -52. only right inside that window
     public double getAbsoluteAngle() {
-        return GoalAngleFilter.wrap(encoderDegrees - encoderOffset) / encoderGearRatio;
+        double angle = GoalAngleFilter.wrap(encoderDegrees - encoderOffset) / encoderGearRatio;
+        double period = 360 / encoderGearRatio, top = absoluteWindowTop();
+        return angle - period * Math.ceil((angle - top) / period);
+    }
+
+    // deg, top of the range getAbsoluteAngle() is right in. the bottom is this - 360 / encoderGearRatio
+    public static double absoluteWindowTop() {
+        return ticksToDegrees(maxTicks) + resyncMargin;
     }
 
     // turret deg the motor encoder and the abs encoder disagree by (mod one abs encoder turn). should stay ~0
@@ -148,7 +156,8 @@ public class Turret {
         return GoalAngleFilter.wrap(encoderDegrees - expected) / encoderGearRatio;
     }
 
-    // sets the motor encoder zero from the abs encoder, assuming the turret is within +/-36 deg (at 5:1) of forward
+    // sets the motor encoder zero from the abs encoder, assuming the turret is in getAbsoluteAngle()'s window
+    // (forward to 67 deg clockwise at 5:1). 0 and -360 read the same, so start at the forward end, never the other
     public void resync() {
         readAbsolute();
         zeroTicks = rawMotorTicks() - direction() * degreesToTicks(getAbsoluteAngle());

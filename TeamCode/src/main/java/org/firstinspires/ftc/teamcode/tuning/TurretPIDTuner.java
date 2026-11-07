@@ -37,7 +37,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 @Config
 @TeleOp
 public class TurretPIDTuner extends OpMode {
-    public static double center = 0;       // ticks
+    public static double center = -362;    // ticks, middle of the 0 to -360 deg range so both steps are reachable
     public static double stepSize = 91;    // ticks, ~45 deg
     public static double holdTime = 1.5;  // s
 

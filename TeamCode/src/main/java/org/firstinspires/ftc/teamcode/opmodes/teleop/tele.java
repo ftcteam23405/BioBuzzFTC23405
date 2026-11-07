@@ -22,7 +22,7 @@ public class tele extends OpMode {
         shooterMotor = hardwareMap.get(DcMotorEx.class, "shooter");
         turretMotor = hardwareMap.get(DcMotorEx.class, "turret");
         intakeMotor = hardwareMap.get(DcMotorEx.class, "intake");
-        latchServo = hardwareMap.get(Servo.class, "latchServo");
+        latchServo = hardwareMap.get(Servo.class, "latch");
         leftFlowerMech = hardwareMap.get(Servo.class, "leftFlowerServo");
         rightFlowerMech = hardwareMap.get(Servo.class, "rightFlowerServo");
         light = new Light(hardwareMap);
