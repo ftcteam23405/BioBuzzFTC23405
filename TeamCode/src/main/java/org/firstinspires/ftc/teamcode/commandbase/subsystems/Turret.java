@@ -123,9 +123,8 @@ public class Turret {
         return motor.getCurrentPosition();
     }
 
-    // ---------------- absolute encoder ----------------
 
-    // reads the abs encoder once and caches it. only resync() and testers need this, not the control loop
+    // reads the abs encoder once and caches it. only resync() and testers need this, not standard loop
     public void readAbsolute() {
         voltage = encoder.getVoltage();
         double span = Math.max(maxVoltage - minVoltage, 1e-3);
@@ -206,7 +205,6 @@ public class Turret {
         return enabled;
     }
 
-    // ---------------- aiming ----------------
 
     // call every loop while tracking, before periodic()
     public void aim(Pose robot, double limelightAngle) {
@@ -225,17 +223,46 @@ public class Turret {
         lastAimPose = robot;
         lastAimNanos = now;
 
-        // shift by this loop's motion, position is a loop old
+        // shift by this loop's motion, position is a loop old. limelight-only doesn't trust pedro for the shift
         double measurement = Double.NaN;
         if (!Double.isNaN(limelightAngle)) {
-            measurement = GoalAngleFilter.wrap(getAngle() + cameraYawOffset - limelightAngle + motion);
+            double shift = aimSource == AimSource.LIMELIGHT ? 0 : motion;
+            measurement = GoalAngleFilter.wrap(getAngle() + cameraYawOffset - limelightAngle + shift);
             if (Math.abs(velocity) > maxCorrectionSpeed) measurement = Double.NaN;
             this.limelightAngle = measurement;
         }
 
-        targetRate = lastLoop ? degreesToTicks(motion) / dt : 0;
+        switch (aimSource) {
+            case ODOMETRY:
+                // pedro only, the limelight is still read above but only for telemetry
+                targetRate = lastLoop ? degreesToTicks(motion) / dt : 0;
+                updateTarget(unwrap(degreesToTicks(odometryAngle)));
+                break;
+            case LIMELIGHT:
+                // limelight only: no feedforward (that comes from pedro), hold the last target between frames
+                targetRate = 0;
+                if (!Double.isNaN(measurement)) updateTarget(unwrap(degreesToTicks(measurement)));
+                break;
+            default:
+                targetRate = lastLoop ? degreesToTicks(motion) / dt : 0;
+                updateTarget(unwrap(degreesToTicks(angleFilter.update(odometryAngle, measurement))));
+        }
+    }
 
-        updateTarget(unwrap(degreesToTicks(angleFilter.update(odometryAngle, measurement))));
+    // which sources aim() uses. FUSED (pedro + limelight through GoalAngleFilter) is what matches use,
+    // the other two are for the testers to check each source on its own
+    public enum AimSource { FUSED, LIMELIGHT, ODOMETRY }
+
+    private AimSource aimSource = AimSource.FUSED;
+
+    public void setAimSource(AimSource source) {
+        if (source == aimSource) return;
+        aimSource = source;
+        resetFilter();
+    }
+
+    public AimSource getAimSource() {
+        return aimSource;
     }
 
     // copy of the target closest to the last target, within the limits +/- wrapBuffer. stays on the same side
@@ -265,7 +292,7 @@ public class Turret {
         return GoalAngleFilter.wrap(Math.toDegrees(fieldAngle - heading));
     }
 
-    // ---------------- control loop ----------------
+
 
     public void periodic() {
         readMotor();
@@ -307,7 +334,6 @@ public class Turret {
         motor.setPower(direction() * p);
     }
 
-    // ---------------- getters ----------------
 
     // raw motor encoder count, no zero or direction applied
     public double getMotorTicks() {

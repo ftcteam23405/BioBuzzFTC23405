@@ -20,8 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-// everything is read once per loop in periodic(), the getters just hand back what it cached
-// so call periodic() every loop, and switchToShootPipeline() / switchToBlobPipeline() to pick what it reads
+// everything is read once per loop in periodic(), getters hand back what is cached
 @Configurable
 @Config
 public class Limelight {
@@ -66,8 +65,8 @@ public class Limelight {
     //    +6.5  +2.75        0       -2.75   -6.5        <- offsets
     private static final double INNER_TAG = 2.75, OUTER_TAG = 6.5;
 
-    // BIOBUZZ cells use tags 30-45, 4 per cell, and this assumes the ids run left to right as you face
-    // the cell. if a cell's ids run the other way, negate its four numbers (or swap the argument order)
+    // cells use tags 30-45, 4 per cell, and this assumes the ids run left to right as you face
+    // if a cell's ids run the other way, negate its four numbers (or swap the argument order)
     private static final Map<Integer, Double> GOAL_OFFSETS = new HashMap<>();
     static {
         cell(30, 31, 32, 33); // cell 1, left to right
@@ -227,8 +226,7 @@ public class Limelight {
         tagIds = new ArrayList<>();
     }
 
-    // ground distance to the center of the closest goal in inches (matches pedro), or NaN if no tag has been seen
-    // every tag is shifted to its goal center first, so it doesn't matter which tag is detected
+    // ground distance to the center of the closest goal
     public double distanceToGoal() {
         return goalDistance;
     }
@@ -306,7 +304,7 @@ public class Limelight {
         return Math.hypot(toGoal[0], toGoal[1]) + distanceOffset;
     }
 
-    // how far out in front of the tag the camera is, flat on the floor. the tag is tilted so y and z are
+
     // slanted, but x is level: ground depth^2 = (x^2 + y^2 + z^2) - h^2 - x^2
     private static double groundDepth(Position p) {
         double h = tagHeightAboveCamera;

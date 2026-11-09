@@ -25,23 +25,22 @@ import smile.interpolation.LinearInterpolation;
 public class Shooter {
 
 
-    // tune with ShooterAutoTuner: press a and it finds all three, then paste the lines it prints here
+    // tune with ShooterAutoTuner
     public static double kS = 0.0957;      // power to overcome friction
-    public static double kV = 0.0004183;   // power per tick/s
+    public static double kV = 0.0004183;   // linear term for ff
     public static double kP = 0.002;
     public static double tolerance = 20; // ticks/s
     public static double nominalVoltage = 12; // V the gains are in, output gets scaled by nominalVoltage / battery
 
 
-    // goal poses are red's for both alliances. blue runs the same coordinates with the field turned 180 deg
-    // (nothing is mirrored), so these land on blue's goals when the robot is on the blue side
+
+    //nothing should ever be mirrored
     public static double goalX = 58;
     public static double audienceGoalY = 52;
     public static double farGoalY = 90;
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
 
 
-    // ground (horizontal) distance to the closest goal (inches) -> flywheel velocity (ticks/s)
     // placeholder values, distances must be increasing
     private static final double[] DISTANCES = {40, 60, 80, 100, 120};
     private static final double[] VELOCITIES = {1200, 1250, 1300, 1350, 1400};
@@ -50,21 +49,21 @@ public class Shooter {
     private final DcMotorEx shooterMotor;
     private final List<VoltageSensor> voltageSensors;
 
-    // battery reads are a hub command each, so only every VOLTAGE_PERIOD
+    // only read voltage every period cuz we want low loop time
     private static final double VOLTAGE_PERIOD = 0.1; // s
     private final ElapsedTime voltageTimer = new ElapsedTime();
     private double batteryVoltage = Double.NaN;
 
     private double targetVelocity = 0;
-    private boolean tracking = false; // true = velocity follows distance to the goal every loop
+    private boolean tracking = false; // true = velocity follows distance to goal
     private double openLoopPower = Double.NaN; // not NaN = fixed power, no PID (for tuning the feedforward)
     private double power = 0;
 
-    // pedro pose + limelight -> filtered ground (horizontal) distance from the robot to the closest goal center
+    // pedro pose + limelight = filtered ground distance
     private final GoalDistanceFilter distanceFilter = new GoalDistanceFilter();
     private double goalDistance = 0;
 
-    // raw readings from the last update, for telemetry
+    // raw readings from the last update, for telemetry purpoises
     private double odometryDistance = 0;
     private double limelightDistance = Double.NaN;
 
@@ -94,7 +93,7 @@ public class Shooter {
         openLoopPower = Range.clip(power, 0, 1);
     }
 
-    // keeps the drift correction it learned from the limelight
+    // keeps the drift correction learned from the limelight
     public void startTracking() {
         tracking = true;
         openLoopPower = Double.NaN;
@@ -135,14 +134,12 @@ public class Shooter {
         double feedforward = kS + kV * targetVelocity;
         double feedback = kP * (targetVelocity - getVelocity());
 
-        // gains are in nominalVoltage terms, a sagging battery gets more power for the same output
         double compensation = nominalVoltage / getBatteryVoltage();
 
-        // let flywheel coast
         setPower(Range.clip((feedforward + feedback) * compensation, 0, 1));
     }
 
-    // lowest hub voltage, refreshed every VOLTAGE_PERIOD. nominalVoltage if no sensor reads
+    // get lowest hub voltage
     public double getBatteryVoltage() {
         if (Double.isNaN(batteryVoltage) || voltageTimer.seconds() > VOLTAGE_PERIOD) {
             voltageTimer.reset();
@@ -166,8 +163,7 @@ public class Shooter {
     }
 
 
-    // sets the target velocity from how far we are from the goal, using odometry + limelight
-    // don't pass distanceToGoal() here
+    // do not pass distanceToGoal() here
     public void setVelocityFromDistance(Pose robot, double limelightDistance) {
         setVelocityFromDistance(robot, closestGoal(robot), limelightDistance);
     }
@@ -182,7 +178,7 @@ public class Shooter {
         targetVelocity = velocityFor(goalDistance);
     }
 
-    // sets the target velocity from a limelight distance only (no pedro), still filtered
+    //target vel from ll distance only (no pedro), still filtered
     public void setVelocityFromDistance(double distance) {
         if (Double.isNaN(distance)) return; // keep the last target instead of spinning at garbage
 
@@ -191,7 +187,7 @@ public class Shooter {
         targetVelocity = velocityFor(goalDistance);
     }
 
-    // looks up the velocity for a distance from the goal, clamped to the ends of the table
+    //helper for vel lookup, clamped to the ends of the table
     public static double velocityFor(double distance) {
         double d = Range.clip(distance, DISTANCES[0], DISTANCES[DISTANCES.length - 1]);
         return velocityTable.interpolate(d);
@@ -202,8 +198,7 @@ public class Shooter {
         return closestGoal(robot, null);
     }
 
-    // same, but sticks with current (the goal we're aiming at now, null for none) until the other one is
-    // goalSwitchMargin closer. a current goal that isn't at goalX (changed live) is ignored
+    // sticks with current goal, null for none
     public static Pose closestGoal(Pose robot, Pose current) {
         Pose audienceGoal = new Pose(goalX, audienceGoalY);
         Pose farGoal = new Pose(goalX, farGoalY);
@@ -225,17 +220,17 @@ public class Shooter {
         limelightDistance = Double.NaN;
     }
 
-    // how much the distance changed from pedro on the last update (inches)
+    // how much the distance (inches) changed from pedro on last update
     public double getFilterDx() {
         return distanceFilter.getDx();
     }
 
-    // limelight readings ignored in a row for being too far from the prediction
+    // ll readings ignored in a row for being too far from the prediction
     public int getFilterRejects() {
         return distanceFilter.getRejects();
     }
 
-    // limelight frames the filter has actually blended in
+    // ll frames the filter has actually blended in
     public int getFilterCorrections() {
         return distanceFilter.getCorrections();
     }
@@ -248,7 +243,7 @@ public class Shooter {
         return odometryDistance;
     }
 
-    // the last limelight reading the filter was given, NaN if it hasn't had one yet
+    // last limelight reading the filter was given, NaN if it hasn't had one yet
     public double getLimelightDistance() {
         return limelightDistance;
     }
@@ -258,7 +253,7 @@ public class Shooter {
         return Commands.instant(this::startTracking);
     }
 
-    // spins up to a fixed velocity
+
     public CommandBuilder spinUp(double velocity) {
         return Commands.instant(() -> setTargetVelocity(velocity));
     }
