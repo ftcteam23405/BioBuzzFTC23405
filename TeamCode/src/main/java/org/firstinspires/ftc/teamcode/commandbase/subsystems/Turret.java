@@ -67,6 +67,7 @@ public class Turret {
     private double target = 0;
     private double targetRate = 0;
     private boolean clamped = false;
+    private double openLoopPower = Double.NaN; // not NaN = fixed power, no PID (for tuning the feedforward)
 
     private double position = 0, velocity = 0, power = 0;
     private double voltage = 0, encoderDegrees = 0;
@@ -177,6 +178,7 @@ public class Turret {
         tracking = false;
         targetRate = 0;
         enabled = true;
+        openLoopPower = Double.NaN;
         updateTarget(ticks);
     }
 
@@ -188,12 +190,27 @@ public class Turret {
         if (!tracking) target = position; // unwrap() starts from where the turret is
         tracking = true;
         enabled = true;
+        openLoopPower = Double.NaN;
+    }
+
+    // fixed power, no PID, for the auto tuner's feedforward sweep. + = left like everything else.
+    // the soft limits in periodic() still cut it at minTicks / maxTicks. setTarget / startTracking / stop end it
+    public void setOpenLoopPower(double power) {
+        tracking = false;
+        targetRate = 0;
+        enabled = true;
+        openLoopPower = Range.clip(power, -1, 1);
+    }
+
+    public boolean isOpenLoop() {
+        return !Double.isNaN(openLoopPower);
     }
 
     public void stop() {
         tracking = false;
         enabled = false;
         targetRate = 0;
+        openLoopPower = Double.NaN;
         setPower(0);
     }
 
@@ -302,6 +319,13 @@ public class Turret {
             return;
         }
 
+        if (isOpenLoop()) {
+            double out = openLoopPower;
+            if ((position >= maxTicks && out > 0) || (position <= minTicks && out < 0)) out = 0;
+            setPower(out);
+            return;
+        }
+
         double error = target - position;
 
         // d(error)/dt from the hub's measured velocity instead of differencing the error, so target jumps
@@ -391,7 +415,7 @@ public class Turret {
     }
 
     public boolean atTarget() {
-        return enabled && !clamped && Math.abs(getError()) < tolerance;
+        return enabled && !isOpenLoop() && !clamped && Math.abs(getError()) < tolerance;
     }
 
     // call after follower.setPose() or a heading reset
