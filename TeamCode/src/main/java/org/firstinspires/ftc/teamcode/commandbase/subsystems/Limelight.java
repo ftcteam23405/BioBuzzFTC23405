@@ -54,11 +54,14 @@ public class Limelight {
     private int tagFrames = 0;                         // new frames seen, for telemetry
     private long lastGoodFrameMs = 0;                  // when we last cached a usable frame
 
-    public static double distanceOffset = 8; // inches added to the camera-to-goal distance (camera to shooter)
+    public static double distanceOffset = 4.5; // inches added to the camera-to-goal distance (camera to shooter)
     // tag center height - limelight lens height (inches, hive at its tallest point), ground = sqrt(r^2 - h^2)
-    public static double tagHeightAboveCamera = 0;
+    public static double tagHeightAboveCamera = 36.2;
     public static long maxStalenessMs = 150; // ignore results older than this
     public static long tagTimeoutMs = 250;   // forget the last tag reading after this long with no new frame
+    // the raw tx comes in backwards on our mount (turret turned away from the tag), so flip every goal angle
+    // here. everything downstream (turret aim, testers) assumes positive = goal is right
+    public static boolean txReversed = true;
 
     //   |<-- 6.5 -->|<- 2.75 ->|<- 2.75 ->|<-- 6.5 -->|
     //   [tag]  [tag]     center     [tag]  [tag]
@@ -96,7 +99,7 @@ public class Limelight {
         pollenDetector = new PollenDetector(hardwareMap, "limelight");
         tagsPipeline = alliance == Alliance.RED ? redTags : blueTags;
 
-        limelight.setPollRateHz(20);
+        limelight.setPollRateHz(40);
         setPipleline(tagsPipeline);
         limelight.start();
     }
@@ -191,6 +194,7 @@ public class Limelight {
             if (Double.isNaN(d)) continue;
 
             double a = angleToGoalCenter(tag);
+            if (txReversed) a = -a;
             ids.add(tag.getFiducialId());
             distances.put(tag.getFiducialId(), d);
             angles.put(tag.getFiducialId(), a);

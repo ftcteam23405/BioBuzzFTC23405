@@ -20,7 +20,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 @Config
 @TeleOp
 public class ShooterTester extends OpMode {
-    public static double velocity = 1300; // ticks/s
+    public static double velocity = 1500; // ticks/s
     public static double step = 50;       // ticks/s per dpad press
 
     private JoinedTelemetry joinedTelemetry;

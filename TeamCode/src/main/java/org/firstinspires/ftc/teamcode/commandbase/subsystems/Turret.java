@@ -36,16 +36,16 @@ public class Turret {
     public static double minVoltage = 0, maxVoltage = 3.2; // lowest / highest voltage it reads over one of its turns
     public static boolean encoderReversed = false;
     public static double encoderGearRatio = 5; // abs encoder turns per turret turn (5 on the 5:1 input, 1 on the turret)
-    public static double encoderOffset = 252.2;    // abs encoder reading (0-360 deg) when the shooter faces forward
+    public static double encoderOffset = 77.0;    // abs encoder reading (0-360 deg) when the shooter faces forward
 
     public static double minTicks = -725.5, maxTicks = 0;
     public static double wrapBuffer = 10; // ticks (~5 deg) the goal can go past a limit before the turret wraps
     public static double resyncMargin = 5; // deg past maxTicks a startup abs reading still counts as inside the limits
 
 
-    public static double kP = 0.01;
-    public static double kD = 0.0016;
-    public static double kS = 0.08;
+    public static double kP = 0.005;
+    public static double kD = 0.000016;
+    public static double kS = 0.1;
     public static double kV = 0.0003;      // power per tick/s of target motion, ~1 / turret top speed
     public static double maxPower = 0.8;
     public static double wrapPower = 1;    // max power while error > wrapError, so wrapping around is fast
