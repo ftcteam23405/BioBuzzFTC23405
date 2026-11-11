@@ -17,6 +17,7 @@ import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +36,7 @@ public class Robot {
     private final List<LynxModule> hubs;
     private final com.pedropathing.utils.Timer loopTimer = new com.pedropathing.utils.Timer();
     private static Pose endPose = new Pose(0, 0, 0);
-    private Pose goal = null; // our alliance's goal the shooter and turret are aiming at, picked every loop
+    private Pose goal = null; //alliance goal the shooter and turret are aiming at, picked every loop
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
     public Robot(HardwareMap hardwareMap, Alliance alliance) {
@@ -82,26 +83,29 @@ public class Robot {
             light.toIntakeFullColor();
         }
 
-        // the limelight can only run one pipeline, so claim the tags one while the shooter or turret is tracking
+        //use tags pipeluine while the shooter or turret is tracking
         if (shooter.isTracking() || turret.isTracking())
             limelight.switchToShootPipeline();
 
-        // one read of the limelight per loop, everything below just uses what it cached
+        //everything below uses what ll just cached
         limelight.periodic();
 
-        // the closer of our alliance's 2 goals, picked once so the shooter and turret always agree. only that
-        // goal's tags go to the filters, a tag on our other goal would drag them toward the wrong one
+        // one goal, picked once per loop so the shooter and turret always agree. only that goal's tags go to
+        // the filters. the limelight picks it when one of our cells is in view (only one can be at a time), so
+        // a wrong pedro pose can't make the filters ignore the tags. pedro's pick is only the fallback with no
+        // tag in view. ODOMETRY (pedro-only testing) always uses pedro's pick
         Pose pose = follower.pose();
-        goal = Shooter.closestGoal(pose, goal);
+        Pose seen = turret.getAimSource() != Turret.AimSource.ODOMETRY ? visibleGoal() : null;
+        goal = seen != null ? seen : Shooter.closestGoal(pose, goal);
         int[] goalTags = cellTags(goal);
 
-        // the fresh readings are NaN unless a new tag frame came in this loop, which is what the
+
         // filters want: pedro moves the estimate every loop, the limelight corrects it once per frame
         if (shooter.isTracking())
             shooter.setVelocityFromDistance(pose, goal, limelight.freshDistanceToGoal(goalTags));
         shooter.periodic();
 
-        // same deal for the turret: pedro turns it with the robot every loop, a new tag frame's tx corrects it
+
         turret.aim(pose, goal, limelight.freshAngle(goalTags));
         turret.periodic();
 
@@ -132,13 +136,44 @@ public class Robot {
         turret.resetFilter();
     }
 
-    // tag ids on each of the 4 cells, same groups as Limelight's GOAL_OFFSETS. audience/far are the real
-    // field ends (audience cells are on the same end of the field for both alliances)
-
+    //audience cells are on the same end of the field for both alliances
     private static final int[] RED_FAR_TAGS = {30, 31, 32, 33};
     private static final int[] RED_AUDIENCE_TAGS = {34, 35, 36, 37};
     private static final int[] BLUE_AUDIENCE_TAGS = {38, 39, 40, 41};
     private static final int[] BLUE_FAR_TAGS = {42, 43, 44, 45};
+
+    // the goal the shooter and turret are aiming at this loop
+    public Pose getGoal() {
+        return goal != null ? goal : Shooter.closestGoal(follower.pose());
+    }
+
+    // whichever of our 2 cells has a tag in view, null if none of our tags are. both cells can't be in
+    // frame at once, so there's nothing to choose between
+    private Pose visibleGoal() {
+        Pose audience = new Pose(Shooter.goalX, Shooter.audienceGoalY);
+        if (anyVisible(cellTags(audience))) return audience;
+        Pose far = new Pose(Shooter.goalX, Shooter.farGoalY);
+        if (anyVisible(cellTags(far))) return far;
+        return null;
+    }
+
+    private boolean anyVisible(int[] cell) {
+        List<Integer> visible = limelight.visibleTagIds();
+        for (int id : cell) {
+            if (visible.contains(id)) return true;
+        }
+        return false;
+    }
+
+    // the ids from closestCellTags() the limelight can see right now. these are the only tags aiming uses
+    public List<Integer> acceptedTagIds() {
+        List<Integer> visible = limelight.visibleTagIds();
+        List<Integer> accepted = new ArrayList<>();
+        for (int id : closestCellTags()) {
+            if (visible.contains(id)) accepted.add(id);
+        }
+        return accepted;
+    }
 
     // tag ids on our alliance's cell that's closest to the robot (the one we're aiming at)
     public int[] closestCellTags() {
@@ -158,11 +193,7 @@ public class Robot {
 
     // true if the limelight can see at least one tag on the closest cell
     public boolean closestCellTagsVisible() {
-        List<Integer> visible = limelight.visibleTagIds();
-        for (int id : closestCellTags()) {
-            if (visible.contains(id)) return true;
-        }
-        return false;
+        return anyVisible(closestCellTags());
     }
 
     // the hive has tipped if the closest cell's tags are gone. only means anything while the limelight

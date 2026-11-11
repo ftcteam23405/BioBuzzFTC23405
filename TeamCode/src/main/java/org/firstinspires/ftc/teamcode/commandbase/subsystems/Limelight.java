@@ -47,6 +47,7 @@ public class Limelight {
     private double goalAngle = Double.NaN;             // deg from the crosshair to that goal center
     private Map<Integer, Double> tagDistances = new LinkedHashMap<>();
     private Map<Integer, Double> tagAngles = new LinkedHashMap<>();
+    private Map<Integer, Double> tagRawTx = new LinkedHashMap<>(); // the limelight's own tx, nothing applied
     private List<Integer> tagIds = new ArrayList<>();
     private boolean newTagFrame = false;               // true only on the loop a new limelight frame arrived
     private long lastFrameStamp = Long.MIN_VALUE;      // hub timestamp of the last frame we used
@@ -184,6 +185,7 @@ public class Limelight {
         List<Integer> ids = new ArrayList<>();
         Map<Integer, Double> distances = new LinkedHashMap<>();
         Map<Integer, Double> angles = new LinkedHashMap<>();
+        Map<Integer, Double> rawTx = new LinkedHashMap<>();
         double closest = Double.NaN;
         double closestAngle = Double.NaN;
 
@@ -198,6 +200,7 @@ public class Limelight {
             ids.add(tag.getFiducialId());
             distances.put(tag.getFiducialId(), d);
             angles.put(tag.getFiducialId(), a);
+            rawTx.put(tag.getFiducialId(), tag.getTargetXDegrees());
 
             // the pipeline only detects our alliance's tags, so the closest tag is on one of our 2 goals
             if (Double.isNaN(closest) || d < closest) {
@@ -211,6 +214,7 @@ public class Limelight {
         tagIds = ids;
         tagDistances = distances;
         tagAngles = angles;
+        tagRawTx = rawTx;
         goalDistance = closest;
         goalAngle = closestAngle;
         newTagFrame = true;
@@ -227,6 +231,7 @@ public class Limelight {
         goalAngle = Double.NaN;
         tagDistances = new LinkedHashMap<>();
         tagAngles = new LinkedHashMap<>();
+        tagRawTx = new LinkedHashMap<>();
         tagIds = new ArrayList<>();
     }
 
@@ -261,6 +266,23 @@ public class Limelight {
     public double freshAngle(int[] cellTags) {
         int id = closestTag(cellTags);
         return newTagFrame && id >= 0 ? tagAngles.get(id) : Double.NaN;
+    }
+
+    // angle() from one cell's tags, held between frames like angle(). NaN if none of them are in view
+    public double angle(int[] cellTags) {
+        int id = closestTag(cellTags);
+        return id >= 0 ? tagAngles.get(id) : Double.NaN;
+    }
+
+    // the raw limelight tx of the tag angle(cellTags) uses: no goal-center offset, no txReversed flip
+    public double rawTx(int[] cellTags) {
+        int id = closestTag(cellTags);
+        return id >= 0 ? tagRawTx.get(id) : Double.NaN;
+    }
+
+    // the visible tag from cellTags that angle(cellTags) / freshAngle(cellTags) use, -1 if none
+    public int closestTagId(int[] cellTags) {
+        return closestTag(cellTags);
     }
 
     // the visible tag from cellTags with the shortest distance reading, -1 if none are visible

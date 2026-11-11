@@ -13,11 +13,11 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 // Runs the real tracking loop (Robot.periodic -> Turret.aim -> filter -> unwrap -> PID) while you drive, so you
@@ -145,7 +145,7 @@ public class TurretTrackingTester extends OpMode {
         joinedTelemetry.addData("Spinning", spinning);
         joinedTelemetry.addData("Pose", String.format(Locale.US, "x %.1f  y %.1f  h %.1f deg",
                 pose.x(), pose.y(), Math.toDegrees(pose.heading())));
-        Pose goal = Shooter.closestGoal(pose); // same pick as Robot, minus its stickiness
+        Pose goal = robot.getGoal(); // the cell the limelight sees, or pedro's pick with no tag in view
         joinedTelemetry.addData("Goal", String.format(Locale.US, "x %.0f  y %.0f  %.1f in away",
                 goal.x(), goal.y(), pose.distance(goal)));
         joinedTelemetry.addLine();
@@ -159,7 +159,9 @@ public class TurretTrackingTester extends OpMode {
 
         joinedTelemetry.addData("LL goal angle", String.format(Locale.US, "%.2f deg", turret.getLimelightAngle()));
         joinedTelemetry.addData("LL tx", String.format(Locale.US, "%.2f deg  (camera yaw %.2f)", robot.limelight.angle(), Turret.cameraYawOffset));
-        joinedTelemetry.addData("LL tags", robot.limelight.visibleTagIds().toString());
+        joinedTelemetry.addData("LL tags (all)", robot.limelight.visibleTagIds().toString());
+        joinedTelemetry.addData("Cell tags", Arrays.toString(robot.closestCellTags()));
+        joinedTelemetry.addData("Accepted tags", robot.acceptedTagIds().toString());
         joinedTelemetry.addData("LL corrections", turret.getFilterCorrections());
         joinedTelemetry.addData("LL rejects", turret.getFilterRejects());
         joinedTelemetry.addData("Filter dx", String.format(Locale.US, "%.2f deg", turret.getFilterDx()));

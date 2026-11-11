@@ -13,15 +13,17 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 // aims the turret off the LIMELIGHT ONLY (Turret.AimSource.LIMELIGHT): every new tag frame sets
 // target = turret + cameraYawOffset - tx, and between frames (or with no tag) it holds the last target.
+// the cell comes from whichever of our alliance's cells has a tag in view (Robot.visibleGoal), so the
+// pedro pose doesn't need to be right. other alliance tags never count: check Accepted tags
 // pedro isn't used for aiming or feedforward, it's only read for the AIM ERROR (pedro) line
 // sticks = field-centric drive   start = reset heading   dpad up = set pose to startX/Y/Heading
 // a = tracking on/off   b = center turret   x = reset stats
@@ -123,10 +125,10 @@ public class TurretTrackingTesterLimelight extends OpMode {
     }
 
     // deg the turret is off from where the limelight says the goal is, NaN with no tag on our cell in view.
-    // the limelight's goal angle is turret + cameraYawOffset - tx, so turret - that = tx - cameraYawOffset
+    // the limelight's goal angle is turret + cameraYawOffset - tx, so turret - that = tx - cameraYawOffset.
+    // uses the same cell's tags the turret aims with, not just the closest tag of any cell
     private double aimError() {
-        if (!robot.closestCellTagsVisible()) return Double.NaN;
-        double tx = robot.limelight.angle();
+        double tx = robot.limelight.angle(robot.closestCellTags());
         return Double.isNaN(tx) ? Double.NaN : GoalAngleFilter.wrap(tx - Turret.cameraYawOffset);
     }
 
@@ -155,8 +157,15 @@ public class TurretTrackingTesterLimelight extends OpMode {
         t.addData("Clamped", turret.isClamped());
         t.addLine();
 
-        t.addData("LL tx", String.format(Locale.US, "%.2f deg  (camera yaw %.2f)", robot.limelight.angle(), Turret.cameraYawOffset));
-        t.addData("LL tags", robot.limelight.visibleTagIds().toString());
+        int[] cell = robot.closestCellTags();
+        t.addData("LL tags (all)", robot.limelight.visibleTagIds().toString());
+        t.addData("Cell tags", Arrays.toString(cell));
+        t.addData("Accepted tags", robot.acceptedTagIds().toString());
+        int usedTag = robot.limelight.closestTagId(cell);
+        t.addData("Aiming off tag", usedTag < 0 ? "none" : String.valueOf(usedTag));
+        t.addData("LL raw tx", String.format(Locale.US, "%.2f deg  (limelight's own, no offset/flip)", robot.limelight.rawTx(cell)));
+        t.addData("LL goal tx", String.format(Locale.US, "%.2f deg  (to cell center, flipped. camera yaw %.2f)",
+                robot.limelight.angle(cell), Turret.cameraYawOffset));
         t.addData("LL frames", String.format(Locale.US, "%d  (%.0f Hz)", robot.limelight.getTagFrames(), frameHz));
         t.addData("Turret speed", String.format(Locale.US, "%.0f deg/s  (LL ignored above %.0f)",
                 Turret.ticksToDegrees(Math.abs(turret.getVelocity())), Turret.ticksToDegrees(Turret.maxCorrectionSpeed)));
@@ -164,8 +173,8 @@ public class TurretTrackingTesterLimelight extends OpMode {
 
         t.addData("Pose", String.format(Locale.US, "x %.1f  y %.1f  h %.1f deg",
                 pose.x(), pose.y(), Math.toDegrees(pose.heading())));
-        Pose goal = Shooter.closestGoal(pose); // same pick as Robot, minus its stickiness
-        t.addData("Goal", String.format(Locale.US, "x %.0f  y %.0f  %.1f in away",
+        Pose goal = robot.getGoal(); // the cell the limelight sees, or pedro's pick with no tag in view
+        t.addData("Goal", String.format(Locale.US, "x %.0f  y %.0f  %.1f in away (pedro)",
                 goal.x(), goal.y(), pose.distance(goal)));
         t.addData("Aim error (pedro, not used)", String.format(Locale.US, "%.2f deg", pedroAimError()));
         t.addData("Loop", String.format(Locale.US, "%.0f Hz", robot.getLoopTimeHz()));
