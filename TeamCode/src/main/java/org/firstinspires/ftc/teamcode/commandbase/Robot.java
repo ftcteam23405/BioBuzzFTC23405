@@ -106,7 +106,7 @@ public class Robot {
         shooter.periodic();
 
 
-        turret.aim(pose, goal, limelight.freshAngle(goalTags));
+        turret.aim(pose, goal, limelight.freshAngle(goalTags), limelight.getFrameCaptureNanos());
         turret.periodic();
 
         for (LynxModule hub : hubs) {

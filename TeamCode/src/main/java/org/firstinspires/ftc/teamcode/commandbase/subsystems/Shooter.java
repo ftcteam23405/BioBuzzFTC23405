@@ -36,8 +36,8 @@ public class Shooter {
 
     //nothing should ever be mirrored
     public static double goalX = 58;
-    public static double audienceGoalY = 52;
-    public static double farGoalY = 90;
+    public static double audienceGoalY = 58;
+    public static double farGoalY = 83;
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
 
 

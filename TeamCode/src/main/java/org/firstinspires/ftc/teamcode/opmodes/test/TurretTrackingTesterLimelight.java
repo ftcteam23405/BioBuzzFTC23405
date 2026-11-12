@@ -166,7 +166,9 @@ public class TurretTrackingTesterLimelight extends OpMode {
         t.addData("LL raw tx", String.format(Locale.US, "%.2f deg  (limelight's own, no offset/flip)", robot.limelight.rawTx(cell)));
         t.addData("LL goal tx", String.format(Locale.US, "%.2f deg  (to cell center, flipped. camera yaw %.2f)",
                 robot.limelight.angle(cell), Turret.cameraYawOffset));
-        t.addData("LL frames", String.format(Locale.US, "%d  (%.0f Hz)", robot.limelight.getTagFrames(), frameHz));
+        t.addData("LL frames", String.format(Locale.US, "%d  (%.0f Hz, must be < 40 / not the loop rate)", robot.limelight.getTagFrames(), frameHz));
+        t.addData("LL latency", String.format(Locale.US, "%.0f ms  (turret moved %.2f deg since, compensated)",
+                robot.limelight.getFrameLatencyMs(), turret.getLatencyCompensation()));
         t.addData("Turret speed", String.format(Locale.US, "%.0f deg/s  (LL ignored above %.0f)",
                 Turret.ticksToDegrees(Math.abs(turret.getVelocity())), Turret.ticksToDegrees(Turret.maxCorrectionSpeed)));
         t.addLine();

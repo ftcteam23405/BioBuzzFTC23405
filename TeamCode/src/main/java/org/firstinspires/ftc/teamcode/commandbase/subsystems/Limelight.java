@@ -54,6 +54,8 @@ public class Limelight {
     private double lastFrameTs = Double.NaN;           // limelight-local timestamp of the same frame
     private int tagFrames = 0;                         // new frames seen, for telemetry
     private long lastGoodFrameMs = 0;                  // when we last cached a usable frame
+    private long frameCaptureNanos = 0;                // System.nanoTime() when the cached frame's image was taken
+    private double frameLatencyMs = Double.NaN;        // ms from image taken to us reading it, for telemetry
 
     public static double distanceOffset = 4.5; // inches added to the camera-to-goal distance (camera to shooter)
     // tag center height - limelight lens height (inches, hive at its tallest point), ground = sqrt(r^2 - h^2)
@@ -174,13 +176,15 @@ public class Limelight {
         if (result.getStaleness() > maxStalenessMs) return;               // too old to use
         if (result.getPipelineIndex() != currentPipeline) return;         // still switching pipelines
 
-        // the limelight polls at 20hz and we loop faster than that, so the same result comes back several
-        // times. only count it as a new frame once, or the filter blends one reading in over and over
+        // we loop faster than the limelight sends new images, so the same image comes back several times.
+        // only count it as a new frame once, or the filter blends one reading in over and over, and the
+        // turret subtracts the same old tx from a newer turret angle every loop (it chases itself).
+        // the hub timestamp changes on every poll even for the same image, so the limelight's own ts is
+        // what tells frames apart. it's 0 if the limelight didn't send one, then fall back to the hub's
         long stamp = result.getControlHubTimeStamp();
         double ts = result.getTimestamp();
-        if (stamp == lastFrameStamp && equalTs(ts, lastFrameTs)) return;
-        lastFrameStamp = stamp;
-        lastFrameTs = ts;
+        boolean repeat = ts != 0 ? equalTs(ts, lastFrameTs) : stamp == lastFrameStamp;
+        if (repeat) return;
 
         List<Integer> ids = new ArrayList<>();
         Map<Integer, Double> distances = new LinkedHashMap<>();
@@ -210,6 +214,14 @@ public class Limelight {
         }
 
         if (ids.isEmpty()) return; // valid result but nothing we can use, keep the last numbers
+
+        lastFrameStamp = stamp;
+        lastFrameTs = ts;
+
+        // when the image was actually taken: exposure + processing on the limelight, plus how long it sat
+        // on the hub before we read it. the turret uses this to compare tx with where it was pointing THEN
+        frameLatencyMs = result.getCaptureLatency() + result.getTargetingLatency() + result.getStaleness();
+        frameCaptureNanos = System.nanoTime() - (long) (frameLatencyMs * 1e6);
 
         tagIds = ids;
         tagDistances = distances;
@@ -304,9 +316,20 @@ public class Limelight {
         return newTagFrame;
     }
 
-    // new tag frames since startup, should climb at about 20hz while a tag is in view
+    // new tag frames since startup, should climb at the limelight's real frame rate while a tag is in view
+    // (never faster than the 40hz poll rate, if it matches the loop rate the dedupe is broken)
     public int getTagFrames() {
         return tagFrames;
+    }
+
+    // System.nanoTime() when the image behind the cached tag numbers was taken
+    public long getFrameCaptureNanos() {
+        return frameCaptureNanos;
+    }
+
+    // ms from that image being taken to us reading it, NaN before the first frame
+    public double getFrameLatencyMs() {
+        return frameLatencyMs;
     }
 
     public List<Integer> visibleTagIds() {
