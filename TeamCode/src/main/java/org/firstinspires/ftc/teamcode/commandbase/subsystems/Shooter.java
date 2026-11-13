@@ -41,8 +41,8 @@ public class Shooter {
 
 
     // placeholder values, distances must be increasing
-    private static final double[] DISTANCES = {40, 60, 80, 100, 120};
-    private static final double[] VELOCITIES = {1200, 1250, 1300, 1350, 1400};
+    private static final double[] DISTANCES = {28, 45, 49, 60};
+    private static final double[] VELOCITIES = {1325, 1400, 1450, 1500};
     private static final Interpolation velocityTable = new LinearInterpolation(DISTANCES, VELOCITIES);
 
     private final DcMotorEx shooterMotor;
