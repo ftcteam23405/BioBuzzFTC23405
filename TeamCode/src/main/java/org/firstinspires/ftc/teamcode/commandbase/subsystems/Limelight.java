@@ -264,30 +264,44 @@ public class Limelight {
     }
 
     // freshDistanceToGoal() / freshAngle(), but only from the tags on one cell (e.g. Robot.closestCellTags()),
-    // so a tag on our other cell can't get blended into the estimate for this one. NaN if none are in view
+    // so a tag on our other cell can't get blended into the estimate for this one. NaN if none are in view.
+    // every visible tag on the cell is an estimate of the same goal center, so they're averaged. using just
+    // one tag made the reading step every time a different tag became the "closest", which the filters'
+    // maxJump would either reject or let yank the turret around
     public double freshDistanceToGoal(int[] cellTags) {
-        int id = closestTag(cellTags);
-        return newTagFrame && id >= 0 ? tagDistances.get(id) : Double.NaN;
+        return newTagFrame ? average(tagDistances, cellTags) : Double.NaN;
     }
 
     public double freshAngle(int[] cellTags) {
-        int id = closestTag(cellTags);
-        return newTagFrame && id >= 0 ? tagAngles.get(id) : Double.NaN;
+        return newTagFrame ? average(tagAngles, cellTags) : Double.NaN;
     }
 
     // angle() from one cell's tags, held between frames like angle(). NaN if none of them are in view
     public double angle(int[] cellTags) {
-        int id = closestTag(cellTags);
-        return id >= 0 ? tagAngles.get(id) : Double.NaN;
+        return average(tagAngles, cellTags);
     }
 
-    // the raw limelight tx of the tag angle(cellTags) uses: no goal-center offset, no txReversed flip
+    // mean of the values for the visible tags in cellTags, NaN if none are visible
+    private static double average(Map<Integer, Double> values, int[] cellTags) {
+        double sum = 0;
+        int n = 0;
+        for (int id : cellTags) {
+            Double v = values.get(id);
+            if (v == null) continue;
+            sum += v;
+            n++;
+        }
+        return n > 0 ? sum / n : Double.NaN;
+    }
+
+    // the raw limelight tx of the closest visible tag in cellTags: no goal-center offset, no txReversed flip
+    // (telemetry only, angle(cellTags) averages every visible tag on the cell)
     public double rawTx(int[] cellTags) {
         int id = closestTag(cellTags);
         return id >= 0 ? tagRawTx.get(id) : Double.NaN;
     }
 
-    // the visible tag from cellTags that angle(cellTags) / freshAngle(cellTags) use, -1 if none
+    // the visible tag from cellTags with the shortest distance reading, -1 if none (telemetry)
     public int closestTagId(int[] cellTags) {
         return closestTag(cellTags);
     }
@@ -368,17 +382,20 @@ public class Limelight {
         double[] toTag = cameraToGoal(p.x, depth, 0);
 
         // angle from the camera->tag ray to the camera->goal ray, signed the same way tx is
-        // (target space x points left as you face the tag, so the cross product gets flipped to match tx)
-        double cross = toTag[1] * toGoal[0] - toTag[0] * toGoal[1];
+        // (x = right as you face the tag, the 2nd axis points back out at the camera, so a positive
+        // cross product in that frame is turning to the right, same as positive tx)
+        double cross = toTag[0] * toGoal[1] - toTag[1] * toGoal[0];
         double dot = toTag[0] * toGoal[0] + toTag[1] * toGoal[1];
 
         return tx + Math.toDegrees(Math.atan2(cross, dot));
     }
 
     // vector from the camera to the goal center flat on the floor, as {along the tag, out from the tag}
-    // camera is px along and depth out in front of the tag, the goal center sits on the tag's face at x = -offset
+    // limelight target space: x+ = RIGHT of the tag as you look at it (docs.limelightvision.io, apriltag
+    // coordinate systems). the camera is px along and depth out in front of the tag, and the goal center
+    // sits on the tag's face at x = +offset (positive offset = goal is to the tag's right as you face it)
     private static double[] cameraToGoal(double px, double depth, double offset) {
-        return new double[] {-offset - px, -depth};
+        return new double[] {offset - px, -depth};
     }
 
     // inches from the tag to its goal center, 0 for a tag that isn't in the table

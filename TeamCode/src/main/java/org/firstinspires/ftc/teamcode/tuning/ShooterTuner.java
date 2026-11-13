@@ -106,9 +106,8 @@ public class ShooterTuner extends OpMode {
             intake.intakeOff();
         }
 
-        // no limelight reading, so the filter is just the pinpoint distance
         if (tableMode)
-            shooter.setVelocityFromDistance(pose, goal, Double.NaN);
+            shooter.setVelocityFromDistance(pose, goal);
 
         shooter.periodic();
 
@@ -136,7 +135,6 @@ public class ShooterTuner extends OpMode {
     private void resetPose() {
         follower.setPose(new Pose(startX, startY, Math.toRadians(startHeadingDeg)));
         goal = null;
-        if (shooter != null) shooter.resetFilter(); // the pose jump would read as motion otherwise
     }
 
     private void setManualVelocity(double velocity) {

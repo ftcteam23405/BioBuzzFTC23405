@@ -20,7 +20,7 @@ import java.util.Map;
 
 // apriltag + shooter tester, makes the follower, limelight, and shooter itself instead of using the Robot class
 // during init: dpad left = blue, dpad right = red
-// a = spin up (tracks distance to goal), x = spin up to fixedVelocity, b = spin down, y = reset distance filter
+// a = spin up (tracks distance to goal), x = spin up to fixedVelocity, b = spin down
 // set startX / startY / startHeadingDeg to where the robot actually starts, or the odometry distance is wrong
 // tune Limelight.distanceOffset / maxStalenessMs from the dashboard, and the filter with GoalDistanceFilterTuner
 @Configurable
@@ -77,14 +77,12 @@ public class AprilTagLimelightTest extends OpMode {
         if (gamepad1.aWasPressed()) shooter.startTracking();
         if (gamepad1.xWasPressed()) shooter.setTargetVelocity(fixedVelocity);
         if (gamepad1.bWasPressed()) shooter.stop();
-        if (gamepad1.yWasPressed()) shooter.resetFilter();
 
         // one read of the limelight per loop, everything below just uses what it cached
         limelight.periodic();
 
-        // NaN unless a new tag frame came in this loop, so the filter corrects once per frame
         if (shooter.isTracking())
-            shooter.setVelocityFromDistance(pose, limelight.freshDistanceToGoal());
+            shooter.setVelocityFromDistance(pose);
         shooter.periodic();
 
         double loopMs = loopTimer.milliseconds();
@@ -112,16 +110,10 @@ public class AprilTagLimelightTest extends OpMode {
         Pose goal = Shooter.closestGoal(pose);
         telemetry.addData("Closest goal", "(%.1f, %.1f)", goal.x(), goal.y());
 
-        // odometry / limelight / filtered side by side, to check distanceOffset and the filter
-        // (odometry and limelight should read about the same when the start pose is right)
-        // only updates while tracking
-        telemetry.addData("Odometry distance", "%.1f in", shooter.getOdometryDistance());
-        double tag = shooter.getLimelightDistance();
+        // odometry and limelight should read about the same when the start pose is right
+        telemetry.addData("Odometry distance", "%.1f in", pose.distance(goal));
+        double tag = limelight.distanceToGoal();
         telemetry.addData("Limelight distance", Double.isNaN(tag) ? "no tag" : String.format("%.1f in", tag));
-        telemetry.addData("Filtered distance", "%.1f in", shooter.getGoalDistance());
-        telemetry.addData("Filter dx (pedro)", "%.2f in", shooter.getFilterDx());
-        telemetry.addData("Filter rejects", shooter.getFilterRejects());
-        telemetry.addData("Filter corrections", shooter.getFilterCorrections());
         telemetry.addData("Table velocity", "%.0f", Shooter.velocityFor(shooter.getGoalDistance()));
     }
 

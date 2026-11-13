@@ -21,14 +21,15 @@ import java.util.Arrays;
 import java.util.Locale;
 
 // Runs the real tracking loop (Robot.periodic -> Turret.aim -> filter -> unwrap -> PID) while you drive, so you
-// can check the turret stays on the goal. Graph Odometry Angle, Target Angle and Turret Angle in Panels/Dashboard.
+// can check the turret stays on the goal. Aims with Turret.AimSource.FUSED (pedro + limelight through the filter).
+// Graph Fused Angle, Odometry Angle, Target Angle and Turret Angle in Panels/Dashboard.
 // sticks = field-centric drive   start = reset heading   dpad up = set pose to startX/Y/Heading
 // a = tracking on/off   b = center turret   y = spin in place at spinPower (watch it wrap)   x = reset stats
 // init: back = resync turret (point the shooter forward first)
 //
 // HOW TO TEST (run TurretTester first so the encoder and limits are set up):
 // 1. Set blue to your alliance BEFORE init (it picks the limelight pipeline). Put the robot at startX/Y/Heading.
-// 2. Press a. The turret should swing to the goal, AIM ERROR (pedro) should settle near 0.
+// 2. Press a. The turret should swing to the goal, AIM ERROR (fused) should settle near 0.
 // 3. Drive and turn slowly. AIM ERROR should stay within a few deg. If it lags while turning, raise Turret.kV.
 // 4. Cover the limelight. LL Corrections should stop climbing, but it should keep tracking on pedro alone.
 // 5. Press y. Each time the goal goes behind the robot the turret should stop at the limit (Clamped), wait
@@ -54,6 +55,7 @@ public class TurretTrackingTester extends OpMode {
     @Override
     public void init() {
         robot = new Robot(hardwareMap, blue ? Alliance.BLUE : Alliance.RED);
+        robot.turret.setAimSource(Turret.AimSource.FUSED); // pedro + limelight, same as matches
         robot.setPose(startPose());
         joinedTelemetry = new JoinedTelemetry(
                 PanelsTelemetry.INSTANCE.getFtcTelemetry(),
@@ -125,15 +127,19 @@ public class TurretTrackingTester extends OpMode {
         lastTarget = Double.NaN;
     }
 
-    // deg the turret is off from where pedro says the goal is
+    // deg the turret is off from the fused (pedro + limelight) goal angle
     private double aimError() {
-        return GoalAngleFilter.wrap(robot.turret.getAngle() - robot.turret.getOdometryAngle());
+        double fused = robot.turret.getFusedAngle();
+        if (Double.isNaN(fused)) return 0;
+        return GoalAngleFilter.wrap(robot.turret.getAngle() - fused);
     }
 
     private void updateTelemetry() {
         Turret turret = robot.turret;
         Pose pose = robot.follower.pose();
 
+        joinedTelemetry.addData("Aim source", turret.getAimSource());
+        joinedTelemetry.addData("Fused Angle", turret.getFusedAngle());
         joinedTelemetry.addData("Odometry Angle", turret.getOdometryAngle());
         joinedTelemetry.addData("Target Angle", turret.getTargetDegrees());
         joinedTelemetry.addData("Turret Angle", turret.getAngle());
@@ -150,7 +156,7 @@ public class TurretTrackingTester extends OpMode {
                 goal.x(), goal.y(), pose.distance(goal)));
         joinedTelemetry.addLine();
 
-        joinedTelemetry.addData("AIM ERROR (pedro)", String.format(Locale.US, "%.2f deg  (max %.2f)", aimError(), maxAimError));
+        joinedTelemetry.addData("AIM ERROR (fused)", String.format(Locale.US, "%.2f deg  (max %.2f)", aimError(), maxAimError));
         joinedTelemetry.addData("At target", turret.atTarget());
         joinedTelemetry.addData("Clamped", turret.isClamped());
         joinedTelemetry.addData("Wraps", wraps);

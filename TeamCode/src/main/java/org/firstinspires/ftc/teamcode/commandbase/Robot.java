@@ -72,6 +72,8 @@ public class Robot {
             loops = 0;
         }
 
+        shooter.closeHood();
+
         follower.update();
 
 //        if (!shooter.atTarget()) {
@@ -103,9 +105,9 @@ public class Robot {
         int[] goalTags = cellTags(goal);
 
 
-        // filters want: pedro moves the estimate every loop, the limelight corrects it once per frame
+        // shooter velocity is from the pinpoint distance only
         if (shooter.isTracking())
-            shooter.setVelocityFromDistance(pose, goal, limelight.freshDistanceToGoal(goalTags));
+            shooter.setVelocityFromDistance(pose, goal);
         shooter.periodic();
 
 
@@ -135,7 +137,6 @@ public class Robot {
     public void setPose(Pose pose) {
         follower.setPose(pose);
         goal = null; // pick the closest goal fresh from the new pose
-        shooter.resetFilter();
         turret.resetFilter();
     }
 

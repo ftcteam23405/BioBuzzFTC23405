@@ -104,14 +104,6 @@ public class Teleop extends OpMode {
             robot.flowerMech.toggle();
         }
 
-        if(gamepad1.yWasPressed()) {
-            hoodPos -= 0.05;
-            if(hoodPos<0.0) {
-                hoodPos = 0.9;
-            }
-            robot.shooter.setHoodPos(hoodPos);
-        }
-
 
         updateTelemetry();
 

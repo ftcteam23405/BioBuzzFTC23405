@@ -79,6 +79,7 @@ public class Turret {
     private final GoalAngleFilter angleFilter = new GoalAngleFilter();
     private double odometryAngle = 0;
     private double limelightAngle = Double.NaN;
+    private double fusedAngle = Double.NaN; // deg, GoalAngleFilter output (FUSED aim source only)
     private Pose lastAimPose = null;
     private long lastAimNanos = 0;
 
@@ -284,7 +285,8 @@ public class Turret {
                 break;
             default:
                 targetRate = lastLoop ? degreesToTicks(motion) / dt : 0;
-                updateTarget(unwrap(degreesToTicks(angleFilter.update(odometryAngle, measurement))));
+                fusedAngle = angleFilter.update(odometryAngle, measurement);
+                updateTarget(unwrap(degreesToTicks(fusedAngle)));
         }
     }
 
@@ -446,8 +448,14 @@ public class Turret {
         angleFilter.reset();
         odometryAngle = 0;
         limelightAngle = Double.NaN;
+        fusedAngle = Double.NaN;
         lastAimPose = null;
         targetRate = 0;
+    }
+
+    // deg, pedro + limelight through GoalAngleFilter. NaN until aim() runs with the FUSED source
+    public double getFusedAngle() {
+        return fusedAngle;
     }
 
     // deg
