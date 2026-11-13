@@ -13,7 +13,7 @@ public class Light {
     private Servo rpmLight, intakeLight;
 
     public static double atShooterTargetColor = 0.722;
-    public static double intakeFullColor = 0.5;
+    public static double intakeFullColor = 0.35;
     public static double defaultColor = 0.277;
 
     public Light(HardwareMap hardwareMap) {

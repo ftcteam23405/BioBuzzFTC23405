@@ -8,10 +8,13 @@ import com.pedropathing.api.Paths;
 import com.pedropathing.api.PoseFactory;
 import com.pedropathing.ivy.Command;
 import com.pedropathing.ivy.Scheduler;
+import com.pedropathing.ivy.commands.Commands;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
 
 import static com.pedropathing.ivy.Scheduler.schedule;
+import static com.pedropathing.ivy.groups.Groups.parallel;
+import static com.pedropathing.ivy.groups.Groups.race;
 import static com.pedropathing.ivy.groups.Groups.sequential;
 import static com.pedropathing.ivy.pedro.PedroCommands.follow;
 
@@ -21,9 +24,6 @@ import org.firstinspires.ftc.teamcode.commandbase.Robot;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
 
 @Configurable
-//one single 2 Tip Close Start auto, then added alliance through constructor (same as Teleop)
-//poses are written for RED and used as-is for BLUE: start the robot on the blue side in the same spot
-//turned 180 deg, and the whole coordinate system comes along with it (nothing is mirrored)
 public class CloseStart2Tip extends OpMode {
 
     Robot robot;
@@ -37,18 +37,28 @@ public class CloseStart2Tip extends OpMode {
     private final Pose goToFlowerEnd;
     private final Pose parkEnd;
 
+
+    public static double launch1Deg = -90;
+    public static double launch2Deg = -185;
+    public static double launch3Deg = -165;
+
+    public static double launchMs = 2000;
+    public static double intakeMs = 1200;
+    public static double aimTimeoutMs = 1500;
+
+
     public CloseStart2Tip(Alliance alliance) {
         this.alliance = alliance;
 
         PoseFactory poseFactory = PoseFactory.degrees();
 
-        startPose = poseFactory.of(54, 9, 90);
-        intakeEnd = poseFactory.of(11.56, 11.05, 240);
-        intakeCtrl1 = poseFactory.of(40.26, 27.29, 0);
-        goAcross1End = poseFactory.of(58, 26, 90);
-        goAcross2End = poseFactory.of(58, 117, 90);
+        startPose = poseFactory.of(56.5, 7.5, 180);
+        intakeEnd = poseFactory.of(12, 9, 190);
+        intakeCtrl1 = poseFactory.of(35.96, 14.5, 0);
+        goAcross1End = poseFactory.of(63.4, 25.59, 90);
+        goAcross2End = poseFactory.of(63, 116, 90);
         goToFlowerEnd = poseFactory.of(47, 123, 90);
-        parkEnd = poseFactory.of(16, 117, 0);
+        parkEnd = poseFactory.of(9.77, 116.36, 0);
     }
 
     public Path intake() {
@@ -56,7 +66,7 @@ public class CloseStart2Tip extends OpMode {
     }
 
     public Path goAcross1() { return line(intakeEnd, goAcross1End).linear(intakeEnd, goAcross1End); }
-    public Path goAcross2() { return line(goAcross1End, goAcross2End).constant(goAcross1End); } //constant(double) is radians, so use the pose's heading
+    public Path goAcross2() { return line(goAcross1End, goAcross2End).constant(goAcross1End); }
     public Path goAcross() { //concatenation of goAcross paths
         return Paths.path(goAcross1(), goAcross2());
     }
@@ -69,12 +79,66 @@ public class CloseStart2Tip extends OpMode {
         return line(goToFlowerEnd, parkEnd).linear(goToFlowerEnd, parkEnd);
     }
 
+
+    private Command launch() {
+        return sequential(
+                race(
+                        Commands.waitUntil(() -> robot.shooter.atTarget() && robot.turret.atTarget()),
+                        Commands.waitMs(aimTimeoutMs)
+                ),
+                Commands.instant(() -> {
+                    robot.latch.open();
+                    robot.intake.intakeOn();
+                }),
+                Commands.waitMs(launchMs),
+                Commands.instant(() -> {
+                    robot.intake.intakeOff();
+                    robot.latch.close();
+                })
+        );
+    }
+
+
+    private Command finishIntake() {
+        return sequential(
+                race(
+                        Commands.waitUntil(robot.intake::isFull),
+                        Commands.waitMs(intakeMs)
+                ),
+                Commands.instant(robot.intake::intakeOff)
+        );
+    }
+
+    private Command startIntake() {
+        return Commands.instant(robot::intake); //closes the latch + intake on
+    }
+
+
     public Command autoRoutine() {
         return sequential(
-                follow(robot.follower, intake()),
+                robot.flowerMech.goUp(),
+                launch(),
+
+                startIntake(),
+
+                parallel(follow(robot.follower, intake()), robot.turret.toTargetDegrees(launch2Deg)),
+                finishIntake(),
+
                 follow(robot.follower, goAcross()),
+                launch(),
+
+                robot.turret.toTargetDegrees(launch3Deg),
+                robot.flowerMech.goDown(),
+                Commands.waitMs(1000),
+                startIntake(),
                 follow(robot.follower, goToFlower()),
-                follow(robot.follower, park())
+                finishIntake(),
+                launch(),
+
+                robot.turret.toTargetDegrees(0),
+                Commands.instant(robot.shooter::stop),
+                parallel(follow(robot.follower, park()), sequential(Commands.waitMs(300), robot.flowerMech.goUp()))
+
         );
     }
 
@@ -87,6 +151,8 @@ public class CloseStart2Tip extends OpMode {
 
     @Override
     public void start() {
+        robot.shooter.startTracking();
+        robot.turret.setTargetDegrees(launch1Deg);
         Scheduler.schedule(autoRoutine());
     }
 
@@ -102,12 +168,17 @@ public class CloseStart2Tip extends OpMode {
         telemetry.addData("Follower Mode", robot.follower.mode());
         telemetry.addData("Path completion", robot.follower.completion());
         telemetry.addData("Distance remaining in path", robot.follower.remainingDistance());
+        telemetry.addData("Goal Distance (in)", robot.shooter.getGoalDistance());
+        telemetry.addData("Shooter Target (ticks/s)", robot.shooter.getTargetVelocity());
+        telemetry.addData("Shooter Velocity (ticks/s)", robot.shooter.getVelocity());
+        telemetry.addData("Turret Target (deg)", robot.turret.getTargetDegrees());
+        telemetry.addData("Turret Angle (deg)", robot.turret.getAngle());
         telemetry.update();
     }
 
     @Override
     public void stop() {
-        robot.setEnd(); // so teleop starts from where auto left off and the turret aims from the right spot
+        robot.setEnd();
         Scheduler.reset();
     }
 
