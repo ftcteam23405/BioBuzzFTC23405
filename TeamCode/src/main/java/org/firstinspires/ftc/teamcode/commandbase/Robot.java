@@ -8,6 +8,7 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.teamcode.commandbase.subsystems.FlowerIntake;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Latch;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Light;
@@ -31,11 +32,12 @@ public class Robot {
     public final Limelight limelight;
     public final Follower follower;
     public final Light light;
+    public final FlowerIntake flowerMech;
     public Alliance alliance;
 
     private final List<LynxModule> hubs;
     private final com.pedropathing.utils.Timer loopTimer = new com.pedropathing.utils.Timer();
-    private static Pose endPose = new Pose(0, 0, 0);
+    private static Pose endPose = new Pose(72, 72, 0);
     private Pose goal = null; //alliance goal the shooter and turret are aiming at, picked every loop
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
@@ -48,6 +50,7 @@ public class Robot {
         limelight = new Limelight(hardwareMap, alliance);
         follower = Constants.create(hardwareMap);
         light = new Light(hardwareMap);
+        flowerMech = new FlowerIntake(hardwareMap);
 
         hubs = hardwareMap.getAll(LynxModule.class);
         for (LynxModule hub : hubs) {
@@ -203,11 +206,9 @@ public class Robot {
         return !closestCellTagsVisible();
     }
 
-    public CommandBuilder intake() {
-        return sequential(
-                latch.toOpenPos(),
-                intake.on()
-        );
+    public void intake() {
+        latch.toClosePos();
+        intake.intakeOn();
     }
 
 

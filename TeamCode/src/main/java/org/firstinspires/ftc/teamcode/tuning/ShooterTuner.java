@@ -2,25 +2,31 @@ package org.firstinspires.ftc.teamcode.tuning;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
+import com.pedropathing.drivetrain.DrivePowers;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.follower.ManualDrive;
+import com.pedropathing.math.Pose;
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
-import org.firstinspires.ftc.teamcode.commandbase.subsystems.Limelight;
+import org.firstinspires.ftc.teamcode.commandbase.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Shooter;
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-// builds the distance -> velocity table in Shooter, using only the Limelight and Shooter subsystems
-// during init: dpad left = blue, dpad right = red
+// builds the distance -> velocity table in Shooter, using the pinpoint (pedro follower) distance to the closest goal
+// the robot has to start on the start pose below (field center by default), or every distance will be off
+// driving: left stick translate, right stick turn (field centric)
 // dpad up/down = velocity +/- step, a = spin up to that velocity, b = spin down
-// x = record (distance, velocity), back = clear recorded points
-// y = toggle table mode: velocity follows the limelight distance through Shooter's table, to check it
-// how to use: park at a distance, adjust velocity until shots go in, press x, repeat at a few distances,
+// x = record (distance, velocity), back = clear recorded points, left bumper = put the follower back on the start pose
+// y = toggle table mode: velocity follows the pinpoint distance through Shooter's table, to check it
+// right trigger = intake
+// how to use: drive to a distance, adjust velocity until shots go in, press x, repeat at a few distances,
 // then copy the DISTANCES / VELOCITIES lines from telemetry into Shooter
 @Configurable
 @Config
@@ -29,49 +35,53 @@ public class ShooterTuner extends OpMode {
     public static double step = 25;          // ticks/s per dpad press
     public static double startVelocity = 1300;
     public static double ticksPerRev = 28;   // flywheel motor encoder, for the rpm readout
-    public static int averageSamples = 15;   // limelight readings averaged for the recorded distance
+    public static double startX = 72, startY = 72, startHeadingDeg = 0; // field center
 
-    private Limelight limelight;
+    private Follower follower;;
     private Shooter shooter;
-    private Alliance alliance = Alliance.BLUE;
+    private Intake intake;
 
+    private Pose goal = null; // current closest goal, kept so it doesn't flicker between the two cells
     private double manualVelocity = startVelocity;
     private boolean tableMode = false;
 
-    private final ArrayDeque<Double> recentDistances = new ArrayDeque<>();
     private final List<double[]> points = new ArrayList<>(); // {distance, velocity}
 
     @Override
     public void init() {
+        for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
+            hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
+        }
         manualVelocity = startVelocity;
     }
 
     @Override
     public void init_loop() {
-        if (gamepad1.dpadLeftWasPressed()) alliance = Alliance.BLUE;
-        if (gamepad1.dpadRightWasPressed()) alliance = Alliance.RED;
-
-        telemetry.addData("Alliance", alliance + " (dpad left/right to change)");
+        telemetry.addData("Start pose", "(%.1f, %.1f) %.0f deg", startX, startY, startHeadingDeg);
+        telemetry.addLine("put the robot on the start pose, the distance comes from odometry");
         telemetry.update();
     }
 
     @Override
     public void start() {
-        // made here instead of init() so the alliance picked during init sets the tag pipeline
-        limelight = new Limelight(hardwareMap, alliance);
-        limelight.switchToShootPipeline();
+        follower = Constants.create(hardwareMap);
+        resetPose();
         shooter = new Shooter(hardwareMap);
+        intake = new Intake(hardwareMap);
     }
 
     @Override
     public void loop() {
-        limelight.periodic(); // one read of the limelight per loop
+        follower.update();
+        Pose pose = follower.pose();
 
-        double distance = limelight.distanceToGoal();            // last reading, NaN if no tag
-        double freshDistance = limelight.freshDistanceToGoal();  // NaN unless it's a new frame
+        DrivePowers powers = ManualDrive.fieldCentric(
+                -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, pose.heading()
+        );
+        follower.manual(powers);
 
-        // only average new frames, otherwise the same reading fills the window and the average is a lie
-        updateAverage(freshDistance);
+        goal = Shooter.closestGoal(pose, goal);
+        double distance = pose.distance(goal);
 
         if (gamepad1.dpadUpWasPressed()) setManualVelocity(manualVelocity + step);
         if (gamepad1.dpadDownWasPressed()) setManualVelocity(manualVelocity - step);
@@ -85,25 +95,30 @@ public class ShooterTuner extends OpMode {
             if (tableMode) shooter.startTracking();
             else setManualVelocity(manualVelocity);
         }
-        if (gamepad1.xWasPressed()) record();
+        if (gamepad1.xWasPressed()) record(distance);
         if (gamepad1.backWasPressed()) points.clear();
+        if (gamepad1.leftBumperWasPressed()) resetPose();
 
-        // only update on a new tag frame, otherwise hold the last target
+        if (gamepad1.rightTriggerWasPressed()) {
+            intake.intakeOn();
+        }
+        if (gamepad1.rightTriggerWasReleased()) {
+            intake.intakeOff();
+        }
+
+        // no limelight reading, so the filter is just the pinpoint distance
         if (tableMode)
-            shooter.setVelocityFromDistance(freshDistance);
+            shooter.setVelocityFromDistance(pose, goal, Double.NaN);
 
         shooter.periodic();
 
         telemetry.addData("Mode", tableMode ? "TABLE (y to go back to manual)" : "MANUAL (y for table mode)");
-        telemetry.addData("Alliance", alliance);
         telemetry.addLine();
 
-        //limelight telemetry
-        telemetry.addData("Distance to goal", Double.isNaN(distance) ? "no tag" : String.format(Locale.US, "%.1f in", distance));
-        telemetry.addData("Averaged distance", recentDistances.isEmpty() ? "no tag" : String.format(Locale.US, "%.1f in (%d samples)", averageDistance(), recentDistances.size()));
-        telemetry.addData("Visible tags", limelight.visibleTagIds());
-        telemetry.addData("Tag frames", limelight.getTagFrames());
-        telemetry.addData("Angle to goal center (deg)", "%.2f", limelight.angle());
+        //pinpoint telemetry
+        telemetry.addData("Pose", "(%.1f, %.1f) %.1f deg", pose.x(), pose.y(), Math.toDegrees(pose.heading()));
+        telemetry.addData("Closest goal", "(%.0f, %.0f)", goal.x(), goal.y());
+        telemetry.addData("Distance to goal", "%.1f in", distance);
         telemetry.addLine();
 
         //shooter telemetry
@@ -111,14 +126,17 @@ public class ShooterTuner extends OpMode {
         telemetry.addData("Target velocity", "%.0f ticks/s (%.0f rpm)", shooter.getTargetVelocity(), toRpm(shooter.getTargetVelocity()));
         telemetry.addData("Actual velocity", "%.0f ticks/s (%.0f rpm)", shooter.getVelocity(), toRpm(shooter.getVelocity()));
         telemetry.addData("At target", shooter.atTarget());
-        if (!recentDistances.isEmpty())
-            telemetry.addData("Current table says", "%.0f ticks/s", Shooter.velocityFor(averageDistance()));
-        if (tableMode)
-            telemetry.addData("Filtered distance", "%.1f in", shooter.getGoalDistance());
+        telemetry.addData("Current table says", "%.0f ticks/s", Shooter.velocityFor(distance));
         telemetry.addLine();
 
         addRecordedTelemetry();
         telemetry.update();
+    }
+
+    private void resetPose() {
+        follower.setPose(new Pose(startX, startY, Math.toRadians(startHeadingDeg)));
+        goal = null;
+        if (shooter != null) shooter.resetFilter(); // the pose jump would read as motion otherwise
     }
 
     private void setManualVelocity(double velocity) {
@@ -127,25 +145,8 @@ public class ShooterTuner extends OpMode {
         shooter.setTargetVelocity(manualVelocity);
     }
 
-    // average of the last few tag readings, so one noisy frame doesn't end up in the table
-    private void updateAverage(double distance) {
-        if (Double.isNaN(distance)) return;
-
-        recentDistances.addLast(distance);
-        while (recentDistances.size() > Math.max(1, averageSamples))
-            recentDistances.removeFirst();
-    }
-
-    private double averageDistance() {
-        double sum = 0;
-        for (double d : recentDistances) sum += d;
-        return sum / recentDistances.size();
-    }
-
-    private void record() {
-        if (recentDistances.isEmpty()) return; // no tag seen yet, nothing to record
-
-        points.add(new double[] {averageDistance(), shooter.getTargetVelocity()});
+    private void record(double distance) {
+        points.add(new double[] {distance, shooter.getTargetVelocity()});
         points.sort(Comparator.comparingDouble(p -> p[0])); // the table needs increasing distances
     }
 
@@ -178,6 +179,5 @@ public class ShooterTuner extends OpMode {
     public void stop() {
         // null if stopped during init
         if (shooter != null) shooter.stop();
-        if (limelight != null) limelight.stop();
     }
 }

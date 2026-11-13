@@ -13,7 +13,6 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.commandbase.util.GoalAngleFilter;
-import org.firstinspires.ftc.teamcode.commandbase.util.TimedHistory;
 
 import java.util.function.LongSupplier;
 
@@ -86,11 +85,9 @@ public class Turret {
     // a limelight frame is ~30-150 ms old by the time aim() gets it, so its tx has to be compared with where
     // the turret (and the robot) were when the image was taken, not where they are now. otherwise while the
     // turret turns the goal looks like it moved ahead of it, the target runs away and it jerks back and forth.
-    // ~0.75 s of samples at 60hz, way more than maxStalenessMs + the limelight's own latency
-    private final TimedHistory positionHistory = new TimedHistory(48); // ticks
-    private final TimedHistory motionHistory = new TimedHistory(48);   // deg, robot motion summed (unwrapped)
-    private double motionTotal = 0;
-    private double latencyCompensation = 0; // deg, turret now - turret when the last frame was taken
+    // where it was then is estimated from its velocity: position - velocity * how old the frame is
+    private long positionNanos = 0;          // when position / velocity were read
+    private double latencyCompensation = 0;  // deg, turret now - turret when the last frame was taken
 
     public Turret(HardwareMap hardwareMap) {
         motor = hardwareMap.get(DcMotorEx.class, "turret");
@@ -171,7 +168,6 @@ public class Turret {
     public void resync() {
         readAbsolute();
         zeroTicks = rawMotorTicks() - direction() * degreesToTicks(getAbsoluteAngle());
-        positionHistory.clear(); // the zero moved, old positions are in the old frame
         readMotor();
     }
 
@@ -256,22 +252,19 @@ public class Turret {
         double motion = lastLoop ? GoalAngleFilter.wrap(odometryAngle - angleTo(lastAimPose, goal)) : 0;
         lastAimPose = robot;
         lastAimNanos = now;
-        motionTotal += motion;
-        motionHistory.add(now, motionTotal);
 
         // tx says where the goal was relative to the turret WHEN THE IMAGE WAS TAKEN, so add it to the turret
-        // angle from then, and shift by how much the robot's motion has moved the goal since then.
-        // limelight-only doesn't trust pedro for the shift
+        // angle from then (position was read a loop ago, so back it up from that read), and shift by how much
+        // the robot's motion has moved the goal since then. limelight-only doesn't trust pedro for the shift
         double measurement = Double.NaN;
         if (!Double.isNaN(limelightAngle)) {
-            double turretThen = positionHistory.isEmpty() ? position : positionHistory.at(captureNanos);
+            double turretAge = Math.max(0, (positionNanos - captureNanos) / 1e9);
+            double turretThen = position - velocity * turretAge;
             latencyCompensation = ticksToDegrees(position - turretThen);
 
-            double shift = 0;
-            if (aimSource != AimSource.LIMELIGHT) {
-                double motionThen = motionHistory.at(captureNanos);
-                shift = Double.isNaN(motionThen) ? motion : motionTotal - motionThen;
-            }
+            double frameAge = Math.max(0, (now - captureNanos) / 1e9);
+            double motionRate = lastLoop ? motion / dt : 0; // deg/s the robot is moving the goal
+            double shift = aimSource == AimSource.LIMELIGHT ? 0 : motionRate * frameAge;
 
             measurement = GoalAngleFilter.wrap(ticksToDegrees(turretThen) + cameraYawOffset - limelightAngle + shift);
             if (Math.abs(velocity) > maxCorrectionSpeed) measurement = Double.NaN;
@@ -380,7 +373,7 @@ public class Turret {
     private void readMotor() {
         position = direction() * (rawMotorTicks() - zeroTicks);
         velocity = direction() * motor.getVelocity();
-        positionHistory.add(clock.getAsLong(), position);
+        positionNanos = clock.getAsLong();
     }
 
     private void setPower(double p) {

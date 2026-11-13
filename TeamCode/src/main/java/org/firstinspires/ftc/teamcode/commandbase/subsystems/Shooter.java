@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -47,6 +48,10 @@ public class Shooter {
     private static final Interpolation velocityTable = new LinearInterpolation(DISTANCES, VELOCITIES);
 
     private final DcMotorEx shooterMotor;
+
+    private Servo hood;
+
+    private double closePos = 0.9;
     private final List<VoltageSensor> voltageSensors;
 
     // only read voltage every period cuz we want low loop time
@@ -71,6 +76,7 @@ public class Shooter {
         shooterMotor = hardwareMap.get(DcMotorEx.class, "shooter");
         voltageSensors = hardwareMap.getAll(VoltageSensor.class);
 
+        hood = hardwareMap.get(Servo.class, "llServo");
         shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
         shooterMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -264,5 +270,13 @@ public class Shooter {
 
     public CommandBuilder waitUntilAtTarget() {
         return Commands.waitUntil(this::atTarget);
+    }
+
+    public void setHoodPos(double pos) {
+        hood.setPosition(pos);
+    }
+
+    public void closeHood() {
+        setHoodPos(closePos);
     }
 }

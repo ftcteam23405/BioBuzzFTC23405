@@ -6,7 +6,6 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
@@ -25,10 +24,6 @@ import java.util.Map;
 @Config
 public class Limelight {
     private final Limelight3A limelight;
-
-    private final Servo llServo;
-    public static double tagsServoPos = 0.5;
-    public static double blobServoPos = 0.5;
 
     private Alliance alliance;
     private static final int redTags = 0, blueTags = 1, blob = 2;
@@ -62,9 +57,13 @@ public class Limelight {
     public static double tagHeightAboveCamera = 36.2;
     public static long maxStalenessMs = 150; // ignore results older than this
     public static long tagTimeoutMs = 250;   // forget the last tag reading after this long with no new frame
-    // the raw tx comes in backwards on our mount (turret turned away from the tag), so flip every goal angle
-    // here. everything downstream (turret aim, testers) assumes positive = goal is right
-    public static boolean txReversed = true;
+    // everything downstream (turret aim, testers) assumes positive tx = goal is RIGHT of the crosshair, which is
+    // the limelight's own convention. our camera is upside down but the limelight UI orientation is set to
+    // match, so tx already comes in the right way: keep this false. only set it true if the image itself is
+    // flipped (orientation not set in the UI). it flips the raw tx only, the goal-center correction comes from
+    // the 3d pose and is right either way.
+    // the old "turret turned away from the tag" was the dedupe bug (same tx reused every loop), not the sign
+    public static boolean txReversed = false;
 
     //   |<-- 6.5 -->|<- 2.75 ->|<- 2.75 ->|<-- 6.5 -->|
     //   [tag]  [tag]     center     [tag]  [tag]
@@ -98,7 +97,6 @@ public class Limelight {
     public Limelight(HardwareMap hardwareMap, Alliance a) {
         alliance = a;
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        llServo = hardwareMap.get(Servo.class, "llServo");
         pollenDetector = new PollenDetector(hardwareMap, "limelight");
         tagsPipeline = alliance == Alliance.RED ? redTags : blueTags;
 
@@ -134,14 +132,12 @@ public class Limelight {
 
     public void switchToShootPipeline() {
         setPipleline(tagsPipeline);
-        llServo.setPosition(tagsServoPos);
         if (!limelight.isRunning())
             limelight.start();
     }
 
     public void switchToBlobPipeline() {
         setPipleline(blob);
-        llServo.setPosition(blobServoPos);
         if (!limelight.isRunning())
             limelight.start();
     }
@@ -200,7 +196,6 @@ public class Limelight {
             if (Double.isNaN(d)) continue;
 
             double a = angleToGoalCenter(tag);
-            if (txReversed) a = -a;
             ids.add(tag.getFiducialId());
             distances.put(tag.getFiducialId(), d);
             angles.put(tag.getFiducialId(), a);
@@ -361,9 +356,11 @@ public class Limelight {
     }
 
     // tx points at the tag, the goal center is off to the side of it, so add the angle between the two rays
+    // positive = goal center is right of the crosshair
     private double angleToGoalCenter(LLResultTypes.FiducialResult tag) {
+        double tx = txReversed ? -tag.getTargetXDegrees() : tag.getTargetXDegrees();
         double offset = goalOffset(tag.getFiducialId());
-        if (offset == 0) return tag.getTargetXDegrees();
+        if (offset == 0) return tx;
 
         Position p = tag.getCameraPoseTargetSpace().getPosition().toUnit(DistanceUnit.INCH);
         double depth = groundDepth(p);
@@ -375,7 +372,7 @@ public class Limelight {
         double cross = toTag[1] * toGoal[0] - toTag[0] * toGoal[1];
         double dot = toTag[0] * toGoal[0] + toTag[1] * toGoal[1];
 
-        return tag.getTargetXDegrees() + Math.toDegrees(Math.atan2(cross, dot));
+        return tx + Math.toDegrees(Math.atan2(cross, dot));
     }
 
     // vector from the camera to the goal center flat on the floor, as {along the tag, out from the tag}

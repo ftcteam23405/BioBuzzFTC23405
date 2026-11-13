@@ -34,6 +34,9 @@ import java.util.Locale;
 //
 // HOW TO TEST (run TurretTester first so the encoder and limits are set up):
 // 1. Set blue to your alliance BEFORE init. Point the robot roughly at the goal so the tags are in view.
+//    Sign check before tracking: turn the turret by hand so the goal is on the RIGHT of the camera's view.
+//    LL goal tx must go POSITIVE. If it goes negative, the turret will run away from the tag: flip
+//    Limelight.txReversed (or fix the orientation in the limelight UI)
 // 2. Press a. AIM ERROR (LL) should settle near 0 and stay there while sitting still.
 //    If it settles off by a constant, that's cameraYawOffset. If it oscillates, the PID is chasing
 //    the ~20Hz frame steps: lower kP or check LL frames Hz.
@@ -164,7 +167,7 @@ public class TurretTrackingTesterLimelight extends OpMode {
         int usedTag = robot.limelight.closestTagId(cell);
         t.addData("Aiming off tag", usedTag < 0 ? "none" : String.valueOf(usedTag));
         t.addData("LL raw tx", String.format(Locale.US, "%.2f deg  (limelight's own, no offset/flip)", robot.limelight.rawTx(cell)));
-        t.addData("LL goal tx", String.format(Locale.US, "%.2f deg  (to cell center, flipped. camera yaw %.2f)",
+        t.addData("LL goal tx", String.format(Locale.US, "%.2f deg  (to cell center, + = right. camera yaw %.2f)",
                 robot.limelight.angle(cell), Turret.cameraYawOffset));
         t.addData("LL frames", String.format(Locale.US, "%d  (%.0f Hz, must be < 40 / not the loop rate)", robot.limelight.getTagFrames(), frameHz));
         t.addData("LL latency", String.format(Locale.US, "%.0f ms  (turret moved %.2f deg since, compensated)",

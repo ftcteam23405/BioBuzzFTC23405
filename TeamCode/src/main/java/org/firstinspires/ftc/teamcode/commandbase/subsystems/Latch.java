@@ -13,30 +13,44 @@ import com.qualcomm.robotcore.hardware.Servo;
 public class Latch {
     private Servo latchServo;
     public static double closePos = 0.6;
-    public static double intakePos = 0.3;
+
     public static double openPos = 0.4;
+    private boolean isClosed = true;
 
     public Latch(HardwareMap hardwareMap){
         latchServo = hardwareMap.get(Servo.class, "latch");
+
     }
 
     public void close() {
         latchServo.setPosition(closePos);
+        isClosed = true;
     }
 
     public void open() {
         latchServo.setPosition(openPos);
+        isClosed = false;
+    }
+    public boolean isClosed() {
+        return isClosed;
+    }
+    public void toggle() {
+        if(this.isClosed) {
+            open();
+        }
+        else {
+            close();
+        }
+
     }
 
-    public void intake() {
-        latchServo.setPosition(intakePos);
-    }
 
-    public CommandBuilder toIntakePos() {
-        return Commands.instant(this::intake);
+    public CommandBuilder toOpenPos() {
+        return Commands.instant(this::open);
     }
-    public CommandBuilder toOpenPos() { return Commands.instant(this::open); }
-    public CommandBuilder toClosePos() { return Commands.instant(this::close); }
+    public CommandBuilder toClosePos() {
+        return Commands.instant(this::close);
+    }
 
     public boolean isOpen() {
         return latchServo.getPosition() == openPos;

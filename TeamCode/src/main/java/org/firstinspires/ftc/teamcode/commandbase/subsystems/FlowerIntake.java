@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.commandbase.subsystems;
 
-import com.pedropathing.ivy.Command;
 import com.pedropathing.ivy.CommandBuilder;
 import com.pedropathing.ivy.commands.Commands;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -10,10 +9,12 @@ public class FlowerIntake {
 
     public final Servo rightFlowerServo, leftFlowerServo;
 
-    public static double upPos = 0.67;
+    public static double upPos = 0.66;
 
     public static double middlePos = 0.5;
-    public static double downPos = 0.22;
+    public static double downPos = 0.25;
+
+    private boolean isDown = false;
 
     public FlowerIntake(HardwareMap hardwareMap) {
         rightFlowerServo = hardwareMap.get(Servo.class, "rightFlowerServo");
@@ -25,15 +26,34 @@ public class FlowerIntake {
         leftFlowerServo.setPosition(pos);
     }
 
-    public CommandBuilder up() {
+    public CommandBuilder goUp() {
         return Commands.instant(() -> setPos(upPos));
     }
 
-    public CommandBuilder down() {
+    public CommandBuilder goDown() {
         return Commands.instant(() -> setPos(downPos));
     }
 
+    public void down() {
+        setPos(downPos);
+        isDown = true;
+    }
+
+    public void up() {
+        setPos(upPos);
+        isDown = false;
+    }
+
+    public void toggle() {
+        if (isDown) {
+            up();
+        }
+        else {
+            down();
+        }
+    }
+
     public boolean isDown() {
-        return ((leftFlowerServo.getPosition() - downPos) == 0);
+        return (isDown);
     }
 }
