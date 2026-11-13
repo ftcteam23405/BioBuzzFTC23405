@@ -83,8 +83,12 @@ public class Teleop extends OpMode {
             robot.intake.intakeOff();
         }
 
-        if (gamepad1.right_bumper) {
+        if (gamepad1.rightBumperWasPressed()) {
             robot.shooter.setTargetVelocity(shooterVelocity);
+        }
+
+        if (gamepad1.leftBumperWasPressed() || gamepad2.rightTriggerWasPressed()) {
+            robot.shooter.setVelocityFromDistance(robot.follower.pose());
         }
 
         if (robot.shooter.atTarget()) {
@@ -101,9 +105,11 @@ public class Teleop extends OpMode {
         if(gamepad1.xWasPressed()) {
             robot.flowerMech.toggle();
         }
-        if (gamepad2.startWasPressed()) // turret kill switch: hold at 0 / back to tracking
+
+
+        if (gamepad2.startWasPressed())
             robot.toggleTurretKill();
-        if (gamepad2.backWasPressed()) // robot is in the corner, snap pose to it
+        if (gamepad2.backWasPressed())
             robot.relocalizeCorner();
 
 

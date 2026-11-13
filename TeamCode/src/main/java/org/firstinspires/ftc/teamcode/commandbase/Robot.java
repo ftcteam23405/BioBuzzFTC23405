@@ -41,7 +41,7 @@ public class Robot {
     private Pose goal = null; //alliance goal the shooter and turret are aiming at, picked every loop
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
-    // corner relocalization pose (inches, heading in deg)
+
     public static double cornerX = 9.2, cornerY = 133.5, cornerHeadingDeg = 0;
 
     private boolean turretKilled = false; // kill switch: turret holds at 0 and stops tracking the goal
