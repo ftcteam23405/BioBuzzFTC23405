@@ -12,15 +12,23 @@ public class Complementary2TipPath {
 
     private final Pose startPose = poseFactory.of(57.5, 132, 90);
     private final Pose leaveEnd = poseFactory.of(58.97, 107.08, 90);
+
     private final Pose goToFlower1End = poseFactory.of(47.19, 121.35, 90);
     private final Pose goToFlower1Ctrl1 = poseFactory.of(45.25, 110.82, 0);
+
     private final Pose goAcross1End = poseFactory.of(59.25, 32.79, 90);
     private final Pose goAcross1Ctrl1 = poseFactory.of(68.95, 96.68, 0);
+
     private final Pose goAcross2End = poseFactory.of(28.2, 9.23, 190);
+
     private final Pose intakeGardenEnd = poseFactory.of(12.54, 9.51, 190);
+
     private final Pose goToShoot1End = poseFactory.of(49.68, 9.51, 180);
+
     private final Pose goToFlower2End = poseFactory.of(18, 47, 180);
+
     private final Pose goToShoot2End = poseFactory.of(49.68, 9.37, 0);
+
     private final Pose park1End = poseFactory.of(10.05, 62.04, 0);
     private final Pose park2End = poseFactory.of(9.91, 96.68, 0);
 
