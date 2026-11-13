@@ -41,6 +41,11 @@ public class Robot {
     private Pose goal = null; //alliance goal the shooter and turret are aiming at, picked every loop
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
+    // corner relocalization pose (inches, heading in deg)
+    public static double cornerX = 9.2, cornerY = 133.5, cornerHeadingDeg = 0;
+
+    private boolean turretKilled = false; // kill switch: turret holds at 0 and stops tracking the goal
+
     public Robot(HardwareMap hardwareMap, Alliance alliance) {
         this.alliance = alliance;
         intake = new Intake(hardwareMap);
@@ -138,6 +143,25 @@ public class Robot {
         follower.setPose(pose);
         goal = null; // pick the closest goal fresh from the new pose
         turret.resetFilter();
+    }
+
+    public void relocalizeCorner() {
+        setPose(new Pose(cornerX, cornerY, Math.toRadians(cornerHeadingDeg)));
+    }
+
+    // turret kill switch. on: hold at 0 (forward) and stop tracking. off: go back to tracking the goal
+    public void setTurretKilled(boolean killed) {
+        turretKilled = killed;
+        if (killed) turret.setTarget(0);
+        else turret.startTracking();
+    }
+
+    public void toggleTurretKill() {
+        setTurretKilled(!turretKilled);
+    }
+
+    public boolean isTurretKilled() {
+        return turretKilled;
     }
 
     //audience cells are on the same end of the field for both alliances

@@ -28,8 +28,6 @@ public class Teleop extends OpMode {
     public boolean hold = false;
     public double speed = 1;
 
-    public boolean killSwitchToggle = false;
-
     public double hoodPos = 0.5;
 
     public Teleop(Alliance alliance) {
@@ -103,6 +101,10 @@ public class Teleop extends OpMode {
         if(gamepad1.xWasPressed()) {
             robot.flowerMech.toggle();
         }
+        if (gamepad2.startWasPressed()) // turret kill switch: hold at 0 / back to tracking
+            robot.toggleTurretKill();
+        if (gamepad2.backWasPressed()) // robot is in the corner, snap pose to it
+            robot.relocalizeCorner();
 
 
         updateTelemetry();
@@ -124,6 +126,7 @@ public class Teleop extends OpMode {
         joinedTelemetry.addData("Turret Position (deg)", robot.turret.getAngle());
         joinedTelemetry.addData("Turret Target (deg)", robot.turret.getTargetDegrees());
         joinedTelemetry.addData("Turret On Goal", robot.turret.atTarget());
+        joinedTelemetry.addData("Turret Kill Switch", robot.isTurretKilled());
         joinedTelemetry.addLine();
 
         joinedTelemetry.addData("Shooter Target (ticks/s)", robot.shooter.getTargetVelocity());
