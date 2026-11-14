@@ -12,9 +12,9 @@ import com.qualcomm.robotcore.hardware.Servo;
 @Config
 public class Latch {
     private Servo latchServo;
-    public static double closePos = 0.6;
+    public static double closePos = 0.85;
 
-    public static double openPos = 0.4;
+    public static double openPos = 0.66;
     private boolean isClosed = true;
 
     public Latch(HardwareMap hardwareMap){
