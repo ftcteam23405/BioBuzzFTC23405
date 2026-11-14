@@ -51,7 +51,7 @@ public class Complementary2Tip extends OpMode {
     @Override
     public void start() {
         robot.turret.setTargetDegrees(0);
-        robot.flowerMech.goUp();
+        robot.flowerMech.up();
         Scheduler.schedule(autoRoutine());
     }
 

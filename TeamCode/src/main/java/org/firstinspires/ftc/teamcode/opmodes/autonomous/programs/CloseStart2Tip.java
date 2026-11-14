@@ -101,10 +101,7 @@ public class CloseStart2Tip extends OpMode {
 
     private Command finishIntake() {
         return sequential(
-                race(
-                        Commands.waitUntil(robot.intake::isFull),
-                        Commands.waitMs(intakeMs)
-                ),
+                        Commands.waitMs(intakeMs),
                 Commands.instant(robot.intake::intakeOff)
         );
     }
