@@ -14,7 +14,7 @@ public class Light {
 
     public static double atShooterTargetColor = 0.722;
     public static double intakeFullColor = 0.35;
-    public static double defaultColor = 0.277;
+    public static double defaultColor = 0;
 
     public Light(HardwareMap hardwareMap) {
 //        rpmLight = hardwareMap.get(Servo.class, "rpmLight");

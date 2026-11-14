@@ -87,10 +87,10 @@ public class Robot {
 //            light.toAtTargetColor();
 //        }
 
-        if (!intake.isFull()) {
-            light.intakeNotFull();
-        } else {
+        if (intake.isFull()) {
             light.toIntakeFullColor();
+        } else {
+            light.intakeNotFull();
         }
 
         //use tags pipeluine while the shooter or turret is tracking
