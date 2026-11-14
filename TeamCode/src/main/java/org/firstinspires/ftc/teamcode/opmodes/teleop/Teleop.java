@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.commandbase.Robot;
 
 @Config
 @Configurable
-//one single Teleop Class that handles all Teleop Commands, then added alliance through constructor
+
 public class Teleop extends OpMode {
 
     JoinedTelemetry joinedTelemetry;
@@ -28,7 +28,7 @@ public class Teleop extends OpMode {
     public boolean hold = false;
     public double speed = 1;
 
-    public double hoodPos = 0.5;
+
 
     public Teleop(Alliance alliance) {
         this.alliance = alliance;
@@ -61,14 +61,12 @@ public class Teleop extends OpMode {
     public void loop() {
         robot.periodic();
         Scheduler.execute();
-        //if the robot is not holding position, run the Teleop Drive
-        //no heading offset for either alliance: blue's coordinates are red's turned 180 deg, so the drivers line up the same
-        if (!hold) {
-            DrivePowers powers = ManualDrive.fieldCentric(
-                    -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading()
-            );
-            robot.follower.manual(powers);
-        }
+
+        DrivePowers powers = ManualDrive.fieldCentric(
+                -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x, robot.follower.pose().heading()
+        );
+        robot.follower.manual(powers);
+
 
         if (gamepad1.startWasPressed())
             robot.resetHeading();
@@ -83,34 +81,37 @@ public class Teleop extends OpMode {
             robot.intake.intakeOff();
         }
 
-        if (gamepad1.rightBumperWasPressed()) {
-            robot.shooter.setTargetVelocity(shooterVelocity);
+        if (gamepad1.rightBumperWasReleased()) {
+            robot.latch.close();
+            robot.intake.intakeOff();
         }
 
-        if (gamepad1.leftBumperWasPressed() || gamepad2.rightTriggerWasPressed()) {
-            robot.shooter.setVelocityFromDistance(robot.follower.pose());
-        }
-
-        if (robot.shooter.atTarget()) {
+        if (robot.shooter.atTarget() && gamepad1.rightBumperWasPressed()) {
+            robot.intake.intakeOn();
             robot.latch.open();
         }
 
-        else if (gamepad1.rightBumperWasReleased()) {
-            robot.shooter.stop();
-            robot.latch.close();
+
+
+        if (gamepad2.right_trigger_pressed) {
+            robot.shooter.setVelocityFromDistance(robot.follower.pose());
         }
-        if(gamepad1.aWasPressed()) {
-            robot.latch.toggle();
+
+        if (gamepad2.left_trigger_pressed) {
+            robot.shooter.setTargetVelocity(shooterVelocity);
         }
-        if(gamepad1.xWasPressed()) {
+
+        if (gamepad2.yWasPressed()) {
             robot.flowerMech.toggle();
         }
 
-
-        if (gamepad2.startWasPressed())
-            robot.toggleTurretKill();
-        if (gamepad2.backWasPressed())
+        if (gamepad2.startWasPressed()) {
             robot.relocalizeCorner();
+        }
+
+        if (gamepad2.backWasPressed()) {
+            robot.toggleTurretKill();
+        }
 
 
         updateTelemetry();

@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 @TeleOp
 public class ServoTester extends LinearOpMode {
 
-    public static double flowerPos = 0.5, latchPos = 0.5, llPos = 0.5;
+    public static double flowerPos = 0.5, latchPos = 0.5, llPos = 0.9;
 
     public void runOpMode() throws InterruptedException {
         final Servo rightFlowerServo, leftFlowerServo, latchServo, llServo;
