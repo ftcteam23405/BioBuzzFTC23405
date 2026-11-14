@@ -45,7 +45,7 @@ dependencies {
     implementation 'org.ftclib.ftclib:core:2.1.1'
     implementation 'org.ftclib.ftclib:vision:2.1.0'
     implementation "com.acmerobotics.dashboard:dashboard:0.4.16"
-    implementation 'com.bylazar:fullpanels:1.0.19'
+    implementation 'com.bylazar:fullpanels:1.0.20'
     implementation 'com.pedropathing.ivy:pedro:1.1.1'
     implementation 'com.pedropathing:revhub:3.0.2'
     implementation 'com.pedropathing:tuning:1.0.3'
