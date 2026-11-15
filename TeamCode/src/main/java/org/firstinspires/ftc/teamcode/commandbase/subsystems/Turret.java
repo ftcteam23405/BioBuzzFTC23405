@@ -53,7 +53,7 @@ public class Turret {
     public static double tolerance = 2;    // ~1 deg
 
     // aiming
-    public static double pivotForward = 0, pivotLeft = 0;
+    public static double pivotForward = -1.5, pivotLeft = 0;
     public static double cameraYawOffset = 0; // deg
     public static double maxCorrectionSpeed = 121; // ticks/s (~60 deg/s), limelight ignored above this
 

@@ -29,12 +29,12 @@ public class Shooter {
     public static double kV = 0.0004183;   // linear term for ff
     public static double kP = 0.0025;
     public static double tolerance = 20; // ticks/s
-    public static double nominalVoltage = 12; // V the gains are in, output gets scaled by nominalVoltage / battery
+    public static double nominalVoltage = 12;
 
 
 
     //nothing should ever be mirrored
-    public static double goalX = 59;
+    public static double goalX = 58;
     public static double audienceGoalY = 58;
     public static double farGoalY = 83;
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,

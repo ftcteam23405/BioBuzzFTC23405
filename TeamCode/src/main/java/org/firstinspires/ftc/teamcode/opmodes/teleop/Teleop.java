@@ -53,7 +53,7 @@ public class Teleop extends OpMode {
     public void init_loop() { //what happens when looping on init
 
         if (gamepad1.backWasPressed()) //skip the saved auto pose and start from the field center
-            robot.setPose(new Pose(72, 72, 0));
+            robot.setPose(new Pose(70.5, 70.5, 0));
 
         joinedTelemetry.addData("Robot Saved Pose", robot.getEnd()); //way to check saved pose after auto
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
@@ -152,8 +152,8 @@ public class Teleop extends OpMode {
     // steps add up, and setTarget clips to the turret limits. stepping stops goal tracking, x goes back to it
     private void manualTurret() {
         double direction = 0;
-        if (gamepad2.dpad_up) direction += 1;
-        if (gamepad2.dpad_down) direction -= 1;
+        if (gamepad2.dpad_up) direction += 3;
+        if (gamepad2.dpad_down) direction -= 3;
 
         // read both every loop (no ||) so neither press flag is left latched for a later loop
         boolean upPressed = gamepad2.dpadUpWasPressed();
