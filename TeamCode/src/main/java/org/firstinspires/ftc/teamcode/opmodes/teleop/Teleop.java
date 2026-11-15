@@ -102,6 +102,13 @@ public class Teleop extends OpMode {
             robot.latch.open();
         }
 
+        if (gamepad1.yWasPressed()) {
+            robot.flowerMech.up();
+        }
+
+        if (gamepad1.aWasPressed()) {
+            robot.flowerMech.down();
+        }
 
 
         if (gamepad2.right_trigger_pressed) {
