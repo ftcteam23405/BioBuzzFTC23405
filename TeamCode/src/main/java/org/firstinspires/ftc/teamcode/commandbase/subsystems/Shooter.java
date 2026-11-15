@@ -34,15 +34,15 @@ public class Shooter {
 
 
     //nothing should ever be mirrored
-    public static double goalX = 58;
+    public static double goalX = 59;
     public static double audienceGoalY = 58;
     public static double farGoalY = 83;
     public static double goalSwitchMargin = 6; // in. the other goal has to be this much closer before we switch to it,
 
 
     // placeholder values, distances must be increasing
-    private static final double[] DISTANCES = {28, 45, 49, 60};
-    private static final double[] VELOCITIES = {1325, 1400, 1450, 1500};
+    private static final double[] DISTANCES = {28, 45, 49, 52, 60};
+    private static final double[] VELOCITIES = {1325, 1400, 1420, 1430, 1500};
     private static final Interpolation velocityTable = new LinearInterpolation(DISTANCES, VELOCITIES);
 
     private final DcMotorEx shooterMotor;

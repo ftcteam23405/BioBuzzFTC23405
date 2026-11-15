@@ -7,7 +7,9 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.pedropathing.drivetrain.DrivePowers;
 import com.pedropathing.follower.ManualDrive;
 import com.pedropathing.ivy.Scheduler;
+import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.commandbase.subsystems.Turret;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
@@ -24,6 +26,11 @@ public class Teleop extends OpMode {
     final Alliance alliance;
 
     public static double shooterVelocity = 1400; // ticks/s while right bumper is held, change it live in panels
+
+    // gamepad2 dpad up/down manual turret: one step on press, then another every turretRepeatSeconds while held
+    public static double turretStepDegrees = 5;
+    public static double turretRepeatSeconds = 0.15;
+    private final ElapsedTime turretStepTimer = new ElapsedTime();
 
     public boolean hold = false;
     public double speed = 1;
@@ -45,7 +52,12 @@ public class Teleop extends OpMode {
     @Override
     public void init_loop() { //what happens when looping on init
 
+        if (gamepad1.backWasPressed()) //skip the saved auto pose and start from the field center
+            robot.setPose(new Pose(72, 72, 0));
+
         joinedTelemetry.addData("Robot Saved Pose", robot.getEnd()); //way to check saved pose after auto
+        joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
+        joinedTelemetry.addLine("Gamepad 1 back: reset pose to (72, 72, 0)");
         joinedTelemetry.update();
         robot.turret.setAimSource(Turret.AimSource.ODOMETRY);
     }
@@ -86,8 +98,7 @@ public class Teleop extends OpMode {
             robot.intake.intakeOff();
         }
 
-        if (robot.shooter.atTarget() && gamepad1.rightBumperWasPressed()) {
-            robot.intake.intakeOn();
+        if (gamepad1.right_bumper) {
             robot.latch.open();
         }
 
@@ -99,6 +110,10 @@ public class Teleop extends OpMode {
 
         if (gamepad2.left_trigger_pressed) {
             robot.shooter.setTargetVelocity(shooterVelocity);
+        }
+
+        if (gamepad2.bWasPressed()) {
+            robot.shooter.setTargetVelocity(0);
         }
 
         if (gamepad2.yWasPressed()) {
@@ -113,6 +128,8 @@ public class Teleop extends OpMode {
             robot.toggleTurretKill();
         }
 
+        manualTurret();
+
 
         updateTelemetry();
 
@@ -122,6 +139,27 @@ public class Teleop extends OpMode {
     public void stop() { //what happens when stop button is clicked
         robot.setEnd();
         Scheduler.reset();
+    }
+
+    // dpad up = +5 deg (left / ccw), dpad down = -5 deg (right / cw). steps from the current target so held
+    // steps add up, and setTarget clips to the turret limits. stepping stops goal tracking, x goes back to it
+    private void manualTurret() {
+        double direction = 0;
+        if (gamepad2.dpad_up) direction += 1;
+        if (gamepad2.dpad_down) direction -= 1;
+
+        // read both every loop (no ||) so neither press flag is left latched for a later loop
+        boolean upPressed = gamepad2.dpadUpWasPressed();
+        boolean downPressed = gamepad2.dpadDownWasPressed();
+        boolean pressed = upPressed || downPressed;
+        if (direction != 0 && (pressed || turretStepTimer.seconds() >= turretRepeatSeconds)) {
+            robot.turret.setTargetDegrees(robot.turret.getTargetDegrees() + direction * turretStepDegrees);
+            turretStepTimer.reset();
+        }
+
+        if (gamepad2.xWasPressed()) {
+            robot.turret.startTracking();
+        }
     }
 
     public void updateTelemetry() {

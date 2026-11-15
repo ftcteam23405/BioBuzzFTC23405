@@ -42,7 +42,7 @@ public class CloseStart2Tip extends OpMode {
     public static double launch2Deg = -185;
     public static double launch3Deg = -165;
 
-    public static double launchMs = 2000;
+    public static double launchMs = 4000;
     public static double intakeMs = 1200;
     public static double aimTimeoutMs = 1500;
 
@@ -53,7 +53,7 @@ public class CloseStart2Tip extends OpMode {
         PoseFactory poseFactory = PoseFactory.degrees();
 
         startPose = poseFactory.of(56.5, 7.5, 180);
-        intakeEnd = poseFactory.of(12, 9, 190);
+        intakeEnd = poseFactory.of(12, 7.5, 180);
         intakeCtrl1 = poseFactory.of(35.96, 14.5, 0);
         goAcross1End = poseFactory.of(63.4, 25.59, 90);
         goAcross2End = poseFactory.of(63, 116, 90);
@@ -119,22 +119,22 @@ public class CloseStart2Tip extends OpMode {
                 startIntake(),
 
                 parallel(follow(robot.follower, intake()), robot.turret.toTargetDegrees(launch2Deg)),
-                finishIntake(),
+                finishIntake()
 
-                follow(robot.follower, goAcross()),
-                launch(),
-
-                robot.turret.toTargetDegrees(launch3Deg),
-                robot.flowerMech.goDown(),
-                Commands.waitMs(1000),
-                startIntake(),
-                follow(robot.follower, goToFlower()),
-                finishIntake(),
-                launch(),
-
-                robot.turret.toTargetDegrees(0),
-                Commands.instant(robot.shooter::stop),
-                parallel(follow(robot.follower, park()), sequential(Commands.waitMs(300), robot.flowerMech.goUp()))
+//                follow(robot.follower, goAcross()),
+//                launch(),
+//
+//                robot.turret.toTargetDegrees(launch3Deg),
+//                robot.flowerMech.goDown(),
+//                Commands.waitMs(1000),
+//                startIntake(),
+//                follow(robot.follower, goToFlower()),
+//                finishIntake(),
+//                launch(),
+//
+//                robot.turret.toTargetDegrees(0),
+//                Commands.instant(robot.shooter::stop),
+//                parallel(follow(robot.follower, park()), sequential(Commands.waitMs(300), robot.flowerMech.goUp()))
 
         );
     }

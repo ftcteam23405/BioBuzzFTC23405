@@ -42,7 +42,7 @@ public class Robot {
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
 
-    public static double cornerX = 9.2, cornerY = 133.5, cornerHeadingDeg = 0;
+    public static double cornerX = 9, cornerY = 135, cornerHeadingDeg = 0;
 
     private boolean turretKilled = false; // kill switch: turret holds at 0 and stops tracking the goal
 
@@ -232,7 +232,7 @@ public class Robot {
     }
 
     public void intake() {
-        latch.toClosePos();
+        latch.close();
         intake.intakeOn();
     }
 

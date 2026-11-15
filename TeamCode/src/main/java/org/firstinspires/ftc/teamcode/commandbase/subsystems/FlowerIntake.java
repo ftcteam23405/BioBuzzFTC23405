@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.commandbase.subsystems;
 
+import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.ivy.CommandBuilder;
 import com.pedropathing.ivy.commands.Commands;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
+@Configurable
 public class FlowerIntake {
 
     public final Servo rightFlowerServo, leftFlowerServo;
@@ -12,7 +14,7 @@ public class FlowerIntake {
     public static double upPos = 0.66;
 
     public static double middlePos = 0.5;
-    public static double downPos = 0.25;
+    public static double downPos = 0.22;
 
     private boolean isDown = false;
 

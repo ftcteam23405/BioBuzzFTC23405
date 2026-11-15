@@ -14,7 +14,7 @@ public class Latch {
     private Servo latchServo;
     public static double closePos = 0.85;
 
-    public static double openPos = 0.66;
+    public static double openPos = 0.67;
     private boolean isClosed = true;
 
     public Latch(HardwareMap hardwareMap){
