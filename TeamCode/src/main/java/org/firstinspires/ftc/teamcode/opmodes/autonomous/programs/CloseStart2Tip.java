@@ -22,6 +22,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.commandbase.Robot;
 import org.firstinspires.ftc.teamcode.commandbase.util.Alliance;
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 
 @Configurable
 public class CloseStart2Tip extends OpMode {
@@ -55,14 +56,14 @@ public class CloseStart2Tip extends OpMode {
         startPose = poseFactory.of(56.5, 7.5, 180);
         intakeEnd = poseFactory.of(12, 7.5, 180);
         intakeCtrl1 = poseFactory.of(35.96, 14.5, 0);
-        goAcross1End = poseFactory.of(63.4, 25.59, 90);
-        goAcross2End = poseFactory.of(63, 116, 90);
+        goAcross1End = poseFactory.of(65, 25.59, 90);
+        goAcross2End = poseFactory.of(65, 116, 90);
         goToFlowerEnd = poseFactory.of(47, 123, 90);
         parkEnd = poseFactory.of(9.77, 116.36, 0);
     }
 
     public Path intake() {
-        return curve(startPose, intakeCtrl1, intakeEnd).linear(startPose, intakeEnd);
+        return curve(startPose, intakeCtrl1, intakeEnd).linear(startPose, intakeEnd).with(Constants.foresightConfig.maxPathSpeed.at(0.8));
     }
 
     public Path goAcross1() { return line(intakeEnd, goAcross1End).linear(intakeEnd, goAcross1End); }
