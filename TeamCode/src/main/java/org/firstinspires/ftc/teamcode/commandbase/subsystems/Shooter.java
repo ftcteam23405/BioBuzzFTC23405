@@ -27,7 +27,7 @@ public class Shooter {
     // tune with ShooterAutoTuner
     public static double kS = 0.0957;      // power to overcome friction
     public static double kV = 0.0004183;   // linear term for ff
-    public static double kP = 0.0025;
+    public static double kP = 0.0023;
     public static double tolerance = 20; // ticks/s
     public static double nominalVoltage = 12;
 
@@ -41,8 +41,8 @@ public class Shooter {
 
 
     // placeholder values, distances must be increasing
-    private static final double[] DISTANCES = {28, 45, 49, 52, 60};
-    private static final double[] VELOCITIES = {1325, 1400, 1420, 1430, 1500};
+    private static final double[] DISTANCES = {57.7, 60.5, 67.0, 78.1};
+    private static final double[] VELOCITIES = {1440, 1450, 1450, 1560};
     private static final Interpolation velocityTable = new LinearInterpolation(DISTANCES, VELOCITIES);
 
     private final DcMotorEx shooterMotor;

@@ -37,12 +37,12 @@ public class Robot {
 
     private final List<LynxModule> hubs;
     private final com.pedropathing.utils.Timer loopTimer = new com.pedropathing.utils.Timer();
-    private static Pose endPose = new Pose(72, 72, 0);
+    private static Pose endPose = new Pose(70.5, 70.5, 0);
     private Pose goal = null; //alliance goal the shooter and turret are aiming at, picked every loop
     public double loops = 0, lastLoop = 0, loopTime = 0;
 
 
-    public static double cornerX = 9, cornerY = 135, cornerHeadingDeg = 0;
+    public static double cornerX = 9, cornerY = 133, cornerHeadingDeg = 0;
 
     private boolean turretKilled = false; // kill switch: turret holds at 0 and stops tracking the goal
 

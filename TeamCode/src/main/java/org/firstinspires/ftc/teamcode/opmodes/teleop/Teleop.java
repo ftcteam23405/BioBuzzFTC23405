@@ -25,7 +25,7 @@ public class Teleop extends OpMode {
     Robot robot;
     final Alliance alliance;
 
-    public static double shooterVelocity = 1400; // ticks/s while right bumper is held, change it live in panels
+    public static double shooterVelocity = 1475; // ticks/s while right bumper is held, change it live in panels
 
     // gamepad2 dpad up/down manual turret: one step on press, then another every turretRepeatSeconds while held
     public static double turretStepDegrees = 5;
@@ -57,7 +57,7 @@ public class Teleop extends OpMode {
 
         joinedTelemetry.addData("Robot Saved Pose", robot.getEnd()); //way to check saved pose after auto
         joinedTelemetry.addData("Follower Pose", robot.follower.pose().toString());
-        joinedTelemetry.addLine("Gamepad 1 back: reset pose to (72, 72, 0)");
+        joinedTelemetry.addLine("Gamepad 1 back: reset pose to (70.5, 72, 0)");
         joinedTelemetry.update();
         robot.turret.setAimSource(Turret.AimSource.ODOMETRY);
     }

@@ -36,7 +36,7 @@ public class Turret {
     public static double minVoltage = 0, maxVoltage = 3.2; // lowest / highest voltage it reads over one of its turns
     public static boolean encoderReversed = false;
     public static double encoderGearRatio = 5; // abs encoder turns per turret turn (5 on the 5:1 input, 1 on the turret)
-    public static double encoderOffset = 77.9;    // abs encoder reading (0-360 deg) when the shooter faces forward
+    public static double encoderOffset = 35.7;    // abs encoder reading (0-360 deg) when the shooter faces forward
 
     public static double minTicks = -725.5, maxTicks = 0;
     public static double wrapBuffer = 10; // ticks (~5 deg) the goal can go past a limit before the turret wraps
